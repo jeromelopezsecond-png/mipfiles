@@ -117,9 +117,13 @@ body.in main{max-width:none;margin:0;padding:8px 24px 60px}
 .hero2::after{content:"";position:absolute;right:-30px;bottom:-50px;width:230px;height:230px;border-radius:38% 62% 55% 45%;background:conic-gradient(from 40deg,#d6a15d,#f3cd98,#b2733a,#d6a15d);transform:rotate(15deg);animation:blob 8s ease-in-out infinite}@keyframes blob{50%{border-radius:58% 42% 40% 60%;transform:rotate(38deg)}}
 .wk{display:flex;gap:4px;justify-content:space-between;text-align:center;font-size:12px;color:var(--mt)}.wk b{display:grid;place-items:center;width:34px;height:34px;margin-top:4px;border-radius:50%;color:var(--tx);font-weight:500}.wk .t b{background:var(--ac);color:var(--btx)}
 .it{background:var(--bg);border-radius:16px;padding:12px;margin-top:10px}.it a{display:inline-block;margin-top:4px}
+body:not(.in) nav>a:not(.logo),body:not(.in) .sp,body:not(.in) #who{display:none}
+.auth{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:center;min-height:72vh;padding:20px 0}.brand h1{font-size:clamp(34px,5vw,54px);line-height:1.06;margin:16px 0}.brand p{font-size:17px;max-width:420px}@media(max-width:800px){.auth{grid-template-columns:1fr;gap:24px;min-height:0}}
+.ob{max-width:680px;margin:36px auto}.ob h1{font-size:clamp(30px,5vw,44px);margin:0 0 8px}.dots{display:flex;gap:6px;margin-bottom:22px}.dot{width:32px;height:4px;border-radius:9px;background:var(--sf2)}.dot.on{background:var(--ac)}
 </style></head><body>
 <nav><a class="logo" href="#home"><b>MIPMIP</b> FILES<small>Mastery in Progress</small></a><form class="sp" onsubmit="event.preventDefault();pq=this.q.value.trim();location.hash=='#archive'?route():location.hash='#archive'"><input name="q" placeholder="Search reviewers, subjects, topics…" aria-label="Search the archive"></form><a href="#home">Home</a><a href="#archive">Archive</a><a href="#exams">Mock Exams</a><a href="#dash">Dashboard</a><span id="who"></span></nav>
 <div class="shell"><aside id="side"><div class="sl">General</div><a href="#dash">Dashboard</a><a href="#archive">Archive</a><a href="#exams">Mock Exams</a><a href="#home">Home</a><div class="sl">Course study</div><a href="#" onclick="goSub('Introduction to Computing');return false">Intro to Computing</a><a href="#" onclick="goSub('Database Management Systems');return false">Database Systems</a><a href="#" onclick="goSub('Web Development');return false">Web Development</a><a href="#" onclick="goSub('Data Structures and Algorithms');return false">Data Structures</a><div class="sl">Account</div><a href="#" onclick="logout();return false">Sign out</a></aside><main id="app"></main></div><div id="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 const R=[
 [1,"Midterm Reviewer: Computing Fundamentals","Introduction to Computing","BS Information Systems",1,"BSIS-I102",1,"Midterm","PDF","2.4 MB","Akinomori","2026-10-28",["Hardware & software","Number systems","Networks"],42],
@@ -169,7 +173,7 @@ app.innerHTML=`<h2 style="margin-top:0">Academic Archive</h2><input id="q" place
 const run=()=>{const g=k=>$('#f_'+k).value,q=$('#q').value.toLowerCase();
 const L=R.filter(r=>(!g('course')||r.course==g('course'))&&(!g('year')||yr(r.year)==g('year'))&&(!g('section')||r.section==g('section'))&&(!g('sem')||'Sem '+r.sem==g('sem'))&&(!g('subject')||r.subject==g('subject'))&&(!g('exam')||r.exam==g('exam'))&&(!q||(r.title+r.subject+r.course+r.topics.join(' ')).toLowerCase().includes(q)));
 $('#res').innerHTML=L.length?L.map(rc).join(''):'<div class="card mt" style="grid-column:1/-1;text-align:center">No reviewers match these filters. Try clearing one.</div>'};
-app.querySelectorAll('select,input').forEach(e=>e.oninput=run);if(pend){$('#f_subject').value=pend;pend=null}if(pq){$('#q').value=pq;pq='';}run()},
+app.querySelectorAll('select,input').forEach(e=>e.oninput=run);if(pend){$('#f_subject').value=pend;pend=null}if(pq){$('#q').value=pq;pq='';}if(pmine&&me){const c=$('#f_course'),y=$('#f_year'),yy=yr(me.year||me.year_level||1);if(me.course&&[...c.options].some(o=>o.value==me.course))c.value=me.course;if([...y.options].some(o=>o.value==yy))y.value=yy;pmine=false}run()},
 r(id){const r=R.find(x=>x.id==id);if(!r)return location.hash='#archive';if(user&&!hist.includes(id))hist.unshift(id);
 const rel=R.filter(x=>x.id!=id&&(x.subject==r.subject||x.course==r.course)).slice(0,3);const ex=E.find(e=>e.subject==r.subject);
 app.innerHTML=`<a class="mt" href="#archive">← Archive</a><h2>${r.title}</h2><div class="mt">${r.subject} · ${r.course} · ${yr(r.year)} · ${r.section} · ${r.exam}</div>
@@ -234,8 +238,22 @@ else if(t=='forgot'){title='Forgot password';fn='doForgot()';body=`<p class="mt 
 else if(t=='reset'){title='Reset password';fn='doReset()';body=`<div class="banner">${rst?`Demo only: no email is sent. Your code is <b>${rst.code}</b>.`:'If that email is registered, a reset code was sent.'}</div>`+fld('cd','Reset code','text','one-time-code')+pw('pw','New password','new-password')+sub('Update password')}
 else{title='Sign in';fn='doLogin()';body=em+pw('pw','Password','current-password')+sub('Sign in')+`<p class="sm"><a class="mt" href="#login/forgot">Forgot password?</a></p>`}
 const tabs=(t=='forgot'||t=='reset')?'':`<div class="tabs"><a class="btn ${t=='register'?'g':''}" href="#login">Sign in</a><a class="btn ${t=='register'?'':'g'}" href="#login/register">Register</a></div>`;
-app.innerHTML=`<div class="card" style="max-width:420px;margin:30px auto"><h2 style="margin-top:0">${title}</h2><div class="banner">Demo mode: accounts live in this page only and vanish on reload. Try student@cca.demo / Student123, mod@cca.demo / Moderator123, admin@cca.demo / Admin12345.</div>${tabs}<form novalidate onsubmit="event.preventDefault();${fn}">${body}</form></div>`;const f=app.querySelector('input');if(f)f.focus()};
-let pend=null,pq='';
+app.innerHTML=`<div class="auth"><div class="brand"><span class="tag">Mastery in Progress</span><h1>Study smarter,<br>one reviewer at a time.</h1><p class="mt">Find the exact reviewer for your course, year and section, then test yourself with mock exams.</p></div><div class="card" style="width:100%;max-width:420px;margin:0 auto"><h2 style="margin-top:0">${title}</h2><div class="banner">Demo mode: accounts live in this page only and vanish on reload. Try student@cca.demo / Student123, mod@cca.demo / Moderator123, admin@cca.demo / Admin12345.</div>${tabs}<form novalidate onsubmit="event.preventDefault();${fn}">${body}</form></div></div>`;const f=app.querySelector('input');if(f)f.focus()};
+let pend=null,pq='',pmine=false,ready=!window.supabase,obi=0;const obd=new Set();
+function obKey(){return 'mip_ob_'+(me.id||me.email)}
+function obDone(){try{if(localStorage.getItem(obKey()))return true}catch(e){}return obd.has(obKey())}
+function obFinish(go){obd.add(obKey());try{localStorage.setItem(obKey(),'1')}catch(e){}if(go=='#archive')pmine=true;obi=0;location.hash=go}
+function obSave(){const c=$('#oc').value,y=+$('#oy').value,s=$('#os').value.trim().slice(0,20).toUpperCase();fe('e_os','');if(!s)return fe('e_os','Enter your section, e.g. BSIS-I102.');
+Object.assign(me,{course:c,year:y,year_level:y,section:s});if(typeof sb!=='undefined'&&sb&&me.id)sb.from('profiles').update({course:c,year_level:y,section:s}).eq('id',me.id);obi=2;V.welcome()}
+V.welcome=()=>{if(!me)return location.hash='#login';
+const dots=[0,1,2].map(i=>`<i class="dot ${i<=obi?'on':''}"></i>`).join('');
+const co=[...new Set(R.map(r=>r.course))].concat('BS Computer Engineering'),cur=me.course||co[0],yy=me.year||me.year_level||1;
+const feat=[['Find','Filter by course, year, section and subject to reach the exact reviewer.'],['Practice','Take timed mock exams and read the explanations after.'],['Track','Watch your scores and saved reviewers grow over time.']];
+let b;
+if(obi==0)b=`<h1>Welcome, ${esc((user||'').split(' ')[0])}.</h1><p class="mt">MIPMIP means Mastery in Progress. Here is what you can do:</p><div class="grid" style="margin:18px 0">${feat.map(f=>`<div class="card"><h3>${f[0]}</h3><p class="mt sm" style="margin:0">${f[1]}</p></div>`).join('')}</div><div class="row"><button class="btn" onclick="obi=1;V.welcome()">Get started</button><button class="btn g" onclick="obFinish('#dash')">Skip</button></div>`;
+else if(obi==1)b=`<h1>Your details</h1><p class="mt">We use these to show the reviewers that match you. You can change them later.</p><label class="fl sm mt" for="oc">Course</label><select id="oc">${co.map(c=>`<option ${c==cur?'selected':''}>${c}</option>`).join('')}</select><label class="fl sm mt" for="oy">Year level</label><select id="oy">${[1,2,3,4].map(n=>`<option value="${n}" ${n==yy?'selected':''}>${yr(n)}</option>`).join('')}</select><label class="fl sm mt" for="os">Section</label><input id="os" value="${esc(me.section||'')}" placeholder="e.g. BSIS-I102"><div class="err" id="e_os"></div><div class="row"><button class="btn" onclick="obSave()">Continue</button><button class="btn g" onclick="obi=0;V.welcome()">Back</button></div>`;
+else b=`<h1>You are all set.</h1><p class="mt">${esc(me.course||'')} · ${yr(me.year||me.year_level||1)} · ${esc(me.section||'')}</p><div class="grid" style="margin:18px 0"><div class="card"><h3>Browse my reviewers</h3><p class="mt sm">Start with materials for your course and year.</p><button class="btn" onclick="obFinish('#archive')">Open archive</button></div><div class="card"><h3>Try a mock exam</h3><p class="mt sm">Test yourself right away.</p><button class="btn g" onclick="obFinish('#exams')">Pick an exam</button></div></div><button class="btn g" onclick="obFinish('#dash')">Go to dashboard</button>`;
+app.innerHTML=`<div class="ob"><div class="dots">${dots}</div>${b}</div>`};
 function goSub(s){pend=s;location.hash=='#archive'?route():location.hash='#archive'}
 V.dash=()=>{if(!user)return location.hash='#login';
 const ex=hist.filter(h=>h.pct!=null),avg=ex.length?Math.round(ex.reduce((s,h)=>s+h.pct,0)/ex.length):0,ids=hist.filter(h=>typeof h=='number');
@@ -252,6 +270,48 @@ ${sm('★','Bookmarks',bm.size,'saved reviewers')}${sm('✓','Exams taken',ex.le
 <h2>Recently viewed</h2><div class="grid">${ids.length?ids.slice(0,3).map(i=>rc(R.find(r=>r.id==i))).join(''):'<div class="card mt">Open a reviewer and it will show up here.</div>'}</div>
 <h2>Exam history</h2>${ex.length?ex.map(h=>`<div class="card" style="margin-bottom:8px">${h.title} · ${h.pct}% · ${h.pass?'Passed':'Failed'}</div>`).join(''):'<div class="card mt">No attempts yet.</div>'}`};
 function setX(x){const s=$('#f_exam');s.value=x=='All'?'':x;s.dispatchEvent(new Event('input'));document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.textContent==x))}
-function route(){const[h,id]=(location.hash.slice(1)||'home').split('/');clearInterval(tick);if(!me&&(h=='dash'||h=='exam')){next=location.hash;toast('Please sign in to continue');return location.hash='#login'}document.querySelectorAll('nav a,#side a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')=='#'+h));(V[h]||V.home)(id);window.scrollTo(0,0);document.querySelectorAll('.stat').forEach(el=>{const n=+el.textContent;if(!/^\d+$/.test(el.textContent)||n<2)return;let k=0;const s=setInterval(()=>{k++;el.textContent=Math.round(n*k/20);if(k>=20)clearInterval(s)},30)})}
+function route(){const[h,id]=(location.hash.slice(1)||'home').split('/');clearInterval(tick);if(!ready){app.innerHTML='<div class="mt" style="padding:60px;text-align:center">Loading…</div>';return}
+if(!me&&h!='login'){next=(V[h]&&h!='home')?location.hash:null;return location.hash='#login'}
+if(me&&h!='welcome'&&!obDone()){location.hash='#welcome';return}document.querySelectorAll('nav a,#side a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')=='#'+h));(V[h]||V.home)(id);window.scrollTo(0,0);document.querySelectorAll('.stat').forEach(el=>{const n=+el.textContent;if(!/^\d+$/.test(el.textContent)||n<2)return;let k=0;const s=setInterval(()=>{k++;el.textContent=Math.round(n*k/20);if(k>=20)clearInterval(s)},30)})}
 addEventListener('hashchange',route);setUser();route();
+</script>
+<script>
+
+const SUPABASE_URL=bjvlmbpaqfjkehqvbzvr.supabase.co,SUPABASE_ANON_KEY=sb_publishable_RzLTtCxlTzHkugDAOQiktQ_eOeNAHmP;
+const LIVE=!SUPABASE_URL.startsWith('PASTE')&&!SUPABASE_ANON_KEY.startsWith('PASTE')&&!!window.supabase;
+let sb=null,recov=false;
+if(LIVE){
+sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);setTimeout(()=>{if(!ready){ready=true;route()}},5000);
+const _l=V.login;
+function resetView(){app.innerHTML=`<div class="card" style="max-width:420px;margin:30px auto"><h2 style="margin-top:0">Set a new password</h2>${recov?'':'<p class="mt sm">Open the reset link from your email to continue.</p>'}<form novalidate onsubmit="event.preventDefault();doReset()"><label class="fl sm mt" for="pw">New password</label><input id="pw" type="password" autocomplete="new-password"><div class="err" id="e_pw"></div><label class="fl sm mt" for="pw2">Confirm password</label><input id="pw2" type="password" autocomplete="new-password"><div class="err" id="e_pw2"></div><button class="btn" style="width:100%;margin-top:6px">Update password</button></form></div>`}
+V.login=t=>{if(t=='reset')return resetView();_l(t);const b=app.querySelector('.banner');if(b)b.remove()};
+const back=()=>location.origin+location.pathname;
+window.doLogin=async()=>{const e=$('#em').value.trim().toLowerCase(),p=$('#pw').value;fe('e_em','');fe('e_pw','');let ok=true;
+if(!emRe.test(e)){fe('e_em','Enter a valid email address.');ok=false}if(!p){fe('e_pw','Enter your password.');ok=false}if(!ok)return;
+const {error}=await sb.auth.signInWithPassword({email:e,password:p});
+if(error)fe('e_pw',/invalid login/i.test(error.message)?'Incorrect email or password.':/confirm/i.test(error.message)?'Please confirm your email first. Check your inbox.':error.message)};
+window.doReg=async()=>{const n=$('#nm').value.trim(),e=$('#em').value.trim().toLowerCase(),p=$('#pw').value,p2=$('#pw2').value,s=$('#sec').value.trim();
+const E={nm:n.length<2?'Enter your full name.':'',em:!emRe.test(e)?'Enter a valid email address.':'',pw:pwErr(p),pw2:p!=p2?'Passwords do not match.':'',sec:!s?'Enter your section, e.g. BSIS-I102.':''};
+Object.keys(E).forEach(k=>fe('e_'+k,E[k]));if(Object.values(E).some(Boolean))return;
+const {data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:back(),data:{full_name:n.slice(0,40),course:$('#crs').value,year_level:+$('#yr').value,section:s.slice(0,20).toUpperCase()}}});
+if(error)return fe('e_em',error.message);
+if(data.user&&data.user.identities&&!data.user.identities.length)return fe('e_em','That email is already registered.');
+if(!data.session){const m=$('#e_pw2');m.style.color='var(--ok)';fe('e_pw2','Account created. Check your email to confirm, then sign in.')}};
+window.doForgot=async()=>{const e=$('#em').value.trim().toLowerCase();fe('e_em','');if(!emRe.test(e))return fe('e_em','Enter a valid email address.');
+const {error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:back()});const m=$('#e_em');
+if(error)return fe('e_em',/rate|seconds/i.test(error.message)?'Please wait a minute before trying again.':error.message);
+m.style.color='var(--ok)';fe('e_em','If that email is registered, a reset link is on its way.')};
+window.doReset=async()=>{const p=$('#pw').value,p2=$('#pw2').value;fe('e_pw','');fe('e_pw2','');const pe=pwErr(p);if(pe)return fe('e_pw',pe);if(p!=p2)return fe('e_pw2','Passwords do not match.');
+const {error}=await sb.auth.updateUser({password:p});if(error)return fe('e_pw',error.message);recov=false;toast('Password updated');location.hash='#dash'};
+window.logout=async()=>{await sb.auth.signOut();bm=new Set();hist=[];toast('Signed out');location.hash='#home'};
+async function loadProfile(s){if(!s){me=null;user=null;setUser();return}
+const {data}=await sb.from('profiles').select('*').eq('id',s.user.id).maybeSingle();
+if(data&&data.suspended){await sb.auth.signOut();toast('This account is suspended.');return}
+me=data?{...data,name:data.full_name}:{name:s.user.email,email:s.user.email,role:'student'};user=me.name;setUser()}
+sb.auth.onAuthStateChange((ev,s)=>{if(ev=='PASSWORD_RECOVERY')recov=true;
+setTimeout(async()=>{await loadProfile(s);ready=true;
+if(recov){location.hash=='#login/reset'?route():location.hash='#login/reset';return}
+if(me&&location.hash.startsWith('#login')){const n=next||'#dash';next=null;location.hash=n;return}
+route()},0)});
+}else{ready=true;route();console.info('MIPMIP: Supabase keys not set, running in demo mode.')}
 </script></body></html>

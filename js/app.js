@@ -1,0 +1,154 @@
+const R=[
+[1,"Midterm Reviewer: Computing Fundamentals","Introduction to Computing","BS Information Systems",1,"BSIS-I102",1,"Midterm","PDF","2.4 MB","Akinomori","2026-10-28",["Hardware & software","Number systems","Networks"],42],
+[2,"Prelim Cheat Sheet: Variables and Loops","Programming 1","BS Information Technology",1,"BSIT-I101",1,"Prelim","PDF","1.1 MB","M. Reyes","2026-10-30",["Data types","Loops","Functions"],65],
+[3,"Final Reviewer: Normalization and SQL","Database Management Systems","BS Information Systems",2,"BSIS-II201",1,"Final","DOCX","860 KB","Akinomori","2026-11-02",["ERD","Normal forms","Joins"],88],
+[4,"Semi-Final Slides: HTML, CSS and JS Basics","Web Development","BS Computer Science",2,"BSCS-II203",2,"Semi-Final","PPTX","5.6 MB","J. Santos","2026-11-03",["Semantic HTML","Flexbox","DOM"],51],
+[5,"Midterm Notes: CIA Triad and Risk","Information Assurance and Security","BS Information Technology",3,"BSIT-III301",1,"Midterm","PDF","1.9 MB","L. Cruz","2026-11-05",["CIA triad","Threats","Controls"],37],
+[6,"Prelim Reviewer: Heuristics and Usability","Human-Computer Interaction","BS Information Systems",3,"BSIS-III302",1,"Prelim","PDF","1.3 MB","Akinomori","2026-11-06",["Nielsen heuristics","Prototyping"],29],
+[7,"Final Reviewer: Arrays, Stacks and Queues","Data Structures and Algorithms","BS Computer Science",2,"BSCS-II201",2,"Final","PDF","3.0 MB","D. Lim","2026-11-07",["Stacks","Queues","Big-O"],73],
+[8,"Midterm Reviewer: SDLC and UML","Systems Analysis and Design","BS Information Systems",2,"BSIS-II202",2,"Midterm","DOCX","1.0 MB","Akinomori","2026-11-08",["SDLC","Use cases","DFD"],24]
+].map(a=>({id:a[0],title:a[1],subject:a[2],course:a[3],year:a[4],section:a[5],sem:a[6],exam:a[7],type:a[8],size:a[9],by:a[10],date:a[11],topics:a[12],dl:a[13]}));
+const E=[
+{id:1,title:"Mock Midterm: Introduction to Computing",subject:"Introduction to Computing",diff:"Easy",mins:5,pass:60,q:[
+{t:"mc",q:"Which device is the primary storage that loses data when power is off?",c:["RAM","SSD","HDD","ROM"],a:"RAM",e:"RAM is volatile memory; it clears when power is lost."},
+{t:"tf",q:"Binary uses only the digits 0 and 1.",c:["True","False"],a:"True",e:"Base-2 has exactly two digits."},
+{t:"id",q:"Identify the term for a network device that forwards packets between networks.",a:"router",e:"A router connects networks and forwards packets by IP address."},
+{t:"mc",q:"What is 1010 in binary as a decimal number?",c:["8","10","12","14"],a:"10",e:"8 + 2 = 10."}]},
+{id:2,title:"Practice Quiz: Database Management Systems",subject:"Database Management Systems",diff:"Medium",mins:5,pass:70,q:[
+{t:"mc",q:"Which normal form removes partial dependencies?",c:["1NF","2NF","3NF","BCNF"],a:"2NF",e:"2NF requires no partial dependency on part of a composite key."},
+{t:"tf",q:"A primary key can contain NULL values.",c:["True","False"],a:"False",e:"Primary keys must be unique and non-null."},
+{t:"id",q:"Identify the SQL clause used to filter grouped results.",a:"having",e:"HAVING filters groups after GROUP BY."},
+{t:"mc",q:"Which JOIN returns all rows from the left table?",c:["INNER","LEFT","CROSS","SELF"],a:"LEFT",e:"LEFT JOIN keeps every left-table row."}]},
+{id:3,title:"Mock Final: Data Structures and Algorithms",subject:"Data Structures and Algorithms",diff:"Hard",mins:5,pass:75,q:[
+{t:"mc",q:"Which structure follows LIFO order?",c:["Queue","Stack","Heap","Graph"],a:"Stack",e:"A stack removes the most recently added item first."},
+{t:"tf",q:"Binary search needs a sorted array.",c:["True","False"],a:"True",e:"Halving the range only works on sorted data."},
+{t:"id",q:"Identify the Big-O of binary search.",a:"o(log n)",e:"Each step halves the search space."},
+{t:"mc",q:"Which structure follows FIFO order?",c:["Stack","Queue","Tree","Set"],a:"Queue",e:"A queue serves the earliest item first."}]}];
+const $=s=>document.querySelector(s),app=$('#app');
+let user=null,bm=new Set(),hist=[],tick=null,X=null;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const yr=n=>['1st','2nd','3rd','4th'][n-1]+' Year';
+function setUser(){document.body.classList.toggle('in',!!me);$('#who').innerHTML=me?`<a href="#dash">${esc(me.username?'@'+me.username:user)} <span class="tag" style="margin:0">${me.role}</span></a><a href="#" onclick="confirmLogout();return false">Sign out</a>`:`<a class="btn" href="#login">Sign in</a>`}
+function toggleBm(id){if(!user){toast('Sign in (demo) to bookmark');return}bm.has(id)?bm.delete(id):bm.add(id);toast(bm.has(id)?'Bookmarked':'Removed');route()}
+function rc(r){return `<div class="card x-${r.exam.replace(/\W/g,'')}"><div style="display:flex;justify-content:space-between"><h3><a href="#r/${r.id}">${r.title}</a></h3><button class="bm ${bm.has(r.id)?'on':''}" aria-label="Bookmark" onclick="toggleBm(${r.id})">★</button></div>
+<div class="mt sm">${r.subject}</div><div class="mt sm">${r.course} · ${yr(r.year)} · ${r.section}</div>
+<div style="margin:8px 0"><span class="tag">${r.exam}</span><span class="tag">${r.type} · ${r.size}</span><span class="tag">Sem ${r.sem}</span></div>
+<div class="mt sm">${r.by} · ${r.date}</div><div class="row" style="margin:10px 0 0"><a class="btn g" href="#r/${r.id}">Preview</a><button class="btn" onclick="dl(${r.id})">Download</button></div></div>`}
+function dl(id){if(!user){toast('Sign in (demo) to download');return}R.find(r=>r.id==id).dl++;toast('Demo: no file attached yet. Connect Supabase Storage.')}
+const V={
+home(){app.innerHTML=`<div class="hero"><span class="tag">Private academic archive</span><h1>Your Academic Knowledge. One <mark>Secret</mark> Archive.</h1><p>Discover reviewers, explore academic resources, and prepare for every examination. Everything you need to study, organized in one place.</p><div class="row"><a class="btn" href="#archive">Explore the Archive</a><a class="btn g" href="#exams">Take a Mock Exam</a></div></div>
+<div class="mq"><div>${(s=>s+s)([...new Set(R.map(r=>r.subject))].map(x=>x+' ✦ ').join(''))}</div></div><div class="grid">${[[R.length,'Reviewers'],[new Set(R.map(r=>r.subject)).size,'Subjects'],[new Set(R.map(r=>r.course)).size,'Courses'],[E.length,'Practice exams']].map(s=>`<div class="card"><div class="stat">${s[0]}</div><div class="mt">${s[1]}</div></div>`).join('')}</div>
+<h2>Recently uploaded</h2><div class="grid">${[...R].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(rc).join('')}</div>
+<h2>Most downloaded</h2><div class="grid">${[...R].sort((a,b)=>b.dl-a.dl).slice(0,3).map(rc).join('')}</div>`},
+archive(){const opt=(k,l,f)=>`<select id="f_${k}" aria-label="${l}"><option value="">${l}</option>${[...new Set(R.map(f))].sort().map(v=>`<option>${v}</option>`).join('')}</select>`;
+app.innerHTML=`<h2 style="margin-top:0">Academic Archive</h2><input id="q" placeholder="Search subjects, titles, topics…" style="margin-bottom:10px"><div class="chips">${['All','Prelim','Midterm','Semi-Final','Final'].map(x=>`<button class="chip ${x=='All'?'on':''}" onclick="setX('${x}')">${x}</button>`).join('')}</div><div class="filters">${opt('course','Course',r=>r.course)}${opt('year','Year level',r=>yr(r.year))}${opt('section','Section',r=>r.section)}${opt('sem','Semester',r=>'Sem '+r.sem)}${opt('subject','Subject',r=>r.subject)}${opt('exam','Exam type',r=>r.exam)}</div><div class="bar2"><span class="mt sm" id="cnt"></span><select id="srt" aria-label="Sort"><option value="new">Newest</option><option value="dl">Most downloaded</option><option value="az">A to Z</option></select><button class="chip" onclick="clearF()">Clear filters</button></div><div id="res" class="grid"></div>`;
+const run=()=>{const g=k=>$('#f_'+k).value,q=$('#q').value.toLowerCase();
+const L=R.filter(r=>(!g('course')||r.course==g('course'))&&(!g('year')||yr(r.year)==g('year'))&&(!g('section')||r.section==g('section'))&&(!g('sem')||'Sem '+r.sem==g('sem'))&&(!g('subject')||r.subject==g('subject'))&&(!g('exam')||r.exam==g('exam'))&&(!q||(r.title+r.subject+r.course+r.topics.join(' ')).toLowerCase().includes(q)));
+L.sort((a,b)=>$('#srt').value=='dl'?b.dl-a.dl:$('#srt').value=='az'?a.title.localeCompare(b.title):b.date.localeCompare(a.date));$('#cnt').textContent=L.length+' of '+R.length+' reviewers';$('#res').innerHTML=L.length?L.map(rc).join(''):'<div class="card mt" style="grid-column:1/-1;text-align:center">No reviewers match these filters. Try clearing one.</div>'};
+app.querySelectorAll('select,input').forEach(e=>e.oninput=run);if(pend){$('#f_subject').value=pend;pend=null}if(pq){$('#q').value=pq;pq='';}if(pmine&&me){const c=$('#f_course'),y=$('#f_year'),yy=yr(me.year||me.year_level||1);if(me.course&&[...c.options].some(o=>o.value==me.course))c.value=me.course;if([...y.options].some(o=>o.value==yy))y.value=yy;pmine=false}run();if(pendX){setX(pendX);pendX=null}},
+r(id){const r=R.find(x=>x.id==id);if(!r)return location.hash='#archive';if(user&&!hist.includes(id))hist.unshift(id);
+const rel=R.filter(x=>x.id!=id&&(x.subject==r.subject||x.course==r.course)).slice(0,3);const ex=E.find(e=>e.subject==r.subject);
+app.innerHTML=`<a class="mt" href="#archive">← Archive</a><h2>${r.title}</h2><div class="mt">${r.subject} · ${r.course} · ${yr(r.year)} · ${r.section} · ${r.exam}</div>
+<div class="row"><button class="btn" onclick="dl(${r.id})">Download</button><button class="btn g" onclick="toggleBm(${r.id})">${bm.has(r.id)?'★ Bookmarked':'☆ Bookmark'}</button>${ex?`<a class="btn g" href="#exam/${ex.id}">Take mock exam</a>`:''}</div>
+<div class="prev">Document preview area<br>Needs Supabase Storage plus a PDF viewer. Not connected in this demo.</div>
+<h2>Topics covered</h2>${r.topics.map(t=>`<span class="tag">${t}</span>`).join('')}<p class="mt sm">Uploaded by ${r.by} on ${r.date} · ${r.type} · ${r.size}</p>
+<h2>You may also need</h2><div class="grid">${rel.map(rc).join('')}</div>`},
+exams(){app.innerHTML=`<h2 style="margin-top:0">Mock Exams</h2><div class="grid">${E.map(e=>`<div class="card"><h3>${e.title}</h3><div class="mt sm">${e.q.length} questions · ${e.mins} min · Passing ${e.pass}%</div><div style="margin:8px 0"><span class="tag">${e.diff}</span></div><a class="btn" href="#exam/${e.id}">Start</a></div>`).join('')}</div>`},
+exam(id){const e=E.find(x=>x.id==id);if(!e)return location.hash='#exams';
+if(!user){app.innerHTML='<div class="card">Sign in (demo) to take exams and save results.<div class="row"><a class="btn" href="#login">Sign in</a></div></div>';return}
+const sh=a=>[...a].sort(()=>Math.random()-.5);
+X={e,qs:sh(e.q).map(q=>({...q,c:q.c&&q.t=='mc'?sh(q.c):q.c})),a:{},f:new Set(),i:0,end:Date.now()+e.mins*60000,start:Date.now()};
+clearInterval(tick);tick=setInterval(()=>{const s=Math.max(0,Math.round((X.end-Date.now())/1000));const t=$('#tm');if(t)t.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;if(!s)submit()},500);xr()}};
+function xr(){const{qs,i,a,f,e}=X,q=qs[i];
+app.innerHTML=`<div style="display:flex;justify-content:space-between"><b>${e.title}</b><span class="timer" id="tm"></span></div>
+<div class="qn">${qs.map((_,k)=>`<button class="${a[k]!=null&&a[k]!==''?'ans':''} ${k==i?'cur':''} ${f.has(k)?'flag':''}" onclick="X.i=${k};xr()" aria-label="Question ${k+1}">${k+1}</button>`).join('')}</div>
+<div class="card"><div class="mt sm">Question ${i+1} of ${qs.length}</div><h3 style="margin:8px 0 12px">${q.q}</h3>
+${q.t=='id'?`<input id="idn" placeholder="Type your answer" value="${esc(a[i]||'')}" oninput="X.a[X.i]=this.value">`:q.c.map((c,ci)=>`<button class="opt ${a[i]==c?'sel':''}" onclick="X.a[X.i]=this.dataset.v;xr()" data-v="${esc(c)}"><kbd>${ci+1}</kbd>${esc(c)}</button>`).join('')}</div>
+<p class="mt sm">Tip: press 1 to 4 to answer, the arrow keys to move, F to flag.</p><div class="row"><button class="btn g" onclick="X.i=Math.max(0,X.i-1);xr()">Previous</button><button class="btn g" onclick="X.i=Math.min(X.qs.length-1,X.i+1);xr()">Next</button><button class="btn g" onclick="X.f.has(X.i)?X.f.delete(X.i):X.f.add(X.i);xr()">${f.has(i)?'Unflag':'Flag'}</button><button class="btn" onclick="confirmSubmit()">Submit</button></div>`}
+function confirmSubmit(){const un=X.qs.filter((_,k)=>!X.a[k]).length;ask('Submit examination?',un?`${un} question${un>1?'s':''} still unanswered.`:'You have answered every question.','Submit',submit)}
+function submit(){clearInterval(tick);const{qs,a,e}=X;let ok=0;
+const rows=qs.map((q,k)=>{const u=(a[k]||'').toString(),c=q.t=='id'?u.trim().toLowerCase()==q.a:u==q.a;if(c)ok++;return `<div class="card" style="margin-bottom:10px"><h3>${k+1}. ${q.q}</h3><div class="${c?'':'mt'}" style="color:${c?'var(--ok)':'var(--bad)'}">Your answer: ${esc(u||'(blank)')}</div><div>Correct: ${esc(q.a)}</div><div class="mt sm">${q.e}</div></div>`}).join('');
+const pct=Math.round(ok/qs.length*100),pass=pct>=e.pass,secs=Math.round((Date.now()-X.start)/1000);
+hist.push({title:e.title,pct,pass,secs});X=null;
+app.innerHTML=`<h2 style="margin-top:0">Results</h2><div class="grid"><div class="card"><div class="ring" style="--p:${pct}"><span>${ok}/${qs.length}</span></div><div class="mt" style="margin-top:10px">Score (${pct}%)</div></div><div class="card"><div class="stat" style="color:${pass?'var(--ok)':'var(--bad)'}">${pass?'Passed':'Failed'}</div><div class="mt">Passing: ${e.pass}%</div></div><div class="card"><div class="stat">${Math.floor(secs/60)}m ${secs%60}s</div><div class="mt">Time used</div></div></div><h2>Review</h2>${rows}<div class="row"><a class="btn" href="#exam/${e.id}">Retake</a><a class="btn g" href="#exams">All exams</a></div>`;if(pass&&typeof confetti=='function')confetti()}
+V.login=()=>{app.innerHTML=`<div class="card" style="max-width:420px;margin:30px auto"><h2 style="margin-top:0">Sign in</h2><div class="banner">Demo mode: no real authentication. Supabase Auth is not connected.</div><label class="sm mt" for="nm">Display name</label><input id="nm" value="Student"><div class="row"><button class="btn" onclick="user=($('#nm').value.trim()||'Student').slice(0,30);setUser();toast('Signed in (demo)');location.hash='#dash'">Continue</button></div></div>`};
+V.dash=()=>{if(!user)return location.hash='#login';const ex=hist.filter(h=>h.pct!=null),avg=ex.length?Math.round(ex.reduce((s,h)=>s+h.pct,0)/ex.length):0;
+const ids=hist.filter(h=>typeof h=='number');
+app.innerHTML=`<h2 style="margin-top:0">Welcome, ${esc(user)}</h2><div class="grid"><div class="card"><div class="stat">${R.length}</div><div class="mt">Reviewers available</div></div><div class="card"><div class="stat">${bm.size}</div><div class="mt">Bookmarks</div></div><div class="card"><div class="stat">${ex.length}</div><div class="mt">Exams taken</div></div><div class="card"><div class="stat">${avg}%</div><div class="mt">Average score</div><div class="bar" style="margin-top:8px"><i style="width:${avg}%"></i></div></div></div>
+<h2>Bookmarked</h2><div class="grid">${bm.size?[...bm].map(i=>rc(R.find(r=>r.id==i))).join(''):'<div class="card mt">Nothing saved yet. Star a reviewer in the archive.</div>'}</div>
+<h2>Recently viewed</h2><div class="grid">${ids.length?ids.slice(0,3).map(i=>rc(R.find(r=>r.id==i))).join(''):'<div class="card mt">Open a reviewer and it will show up here.</div>'}</div>
+<h2>Exam history</h2>${ex.length?ex.map(h=>`<div class="card" style="margin-bottom:8px">${h.title} · ${h.pct}% · ${h.pass?'Passed':'Failed'}</div>`).join(''):'<div class="card mt">No attempts yet.</div>'}<p class="mt sm">Admin panel, uploads, and profile editing are not built in this first pass.</p>`};
+let me=null,next=null,rst=null,fails={};
+const users=[
+{email:'student@cca.demo',pw:'Student123',name:'Demo Student',username:'demo_student',code_name:'Night Owl',role:'student',course:'BS Information Systems',year:1,section:'BSIS-I102'},
+{email:'mod@cca.demo',pw:'Moderator123',name:'Demo Moderator',username:'demo_mod',code_name:'Quiet Falcon',role:'moderator'},
+{email:'admin@cca.demo',pw:'Admin12345',name:'Demo Admin',username:'demo_admin',code_name:'Head Archivist',role:'admin'}];
+const emRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/,fe=(id,m)=>{const e=$('#'+id);if(e)e.textContent=m};
+function pwErr(p){return p.length<8?'Use at least 8 characters.':(!/\d/.test(p)||!/[a-z]/i.test(p))?'Include letters and a number.':''}
+function signIn(u){me=u;user=u.name;bm=new Set();hist=[];setUser();toast('Welcome, '+u.name);const n=next||'#dash';next=null;location.hash=n}
+function logout(){me=null;user=null;bm=new Set();hist=[];setUser();toast('Signed out');location.hash='#home'}
+function doLogin(){const e=$('#em').value.trim().toLowerCase(),p=$('#pw').value;fe('e_em','');fe('e_pw','');let ok=true;
+if(!emRe.test(e)){fe('e_em','Enter a valid email address.');ok=false}if(!p){fe('e_pw','Enter your password.');ok=false}if(!ok)return;
+if((fails[e]||0)>=5)return fe('e_pw','Too many failed attempts. Reload the page to reset this demo lock.');
+const u=users.find(x=>x.email==e&&x.pw==p);if(!u){fails[e]=(fails[e]||0)+1;return fe('e_pw','Incorrect email or password.')}signIn(u)}
+function doReg(){const n=$('#nm').value.trim(),u=$('#un').value.trim(),cn=$('#cn').value.trim(),e=$('#em').value.trim().toLowerCase(),p=$('#pw').value,p2=$('#pw2').value;
+const E={nm:n.length<2?'Enter your full name.':'',cn:/^[\w '\-]{2,24}$/.test(cn)?'':'Use 2 to 24 letters or numbers for your code name.',un:!/^[a-z0-9_]{3,20}$/i.test(u)?'Use 3 to 20 letters, numbers or underscores.':users.some(x=>(x.username||'')==u.toLowerCase())?'That username is taken.':'',em:!emRe.test(e)?'Enter a valid email address.':users.some(x=>x.email==e)?'That email is already registered.':'',pw:pwErr(p),pw2:p!=p2?'Passwords do not match.':''};
+Object.keys(E).forEach(k=>fe('e_'+k,E[k]));if(Object.values(E).some(Boolean))return;
+signIn({email:e,pw:p,name:n.slice(0,40),username:u.toLowerCase(),code_name:cn,role:'student',course:$('#crs').value,year:+$('#yr').value});users.push(me)}
+function doForgot(){const e=$('#em').value.trim().toLowerCase();fe('e_em','');if(!emRe.test(e))return fe('e_em','Enter a valid email address.');
+rst=users.some(u=>u.email==e)?{email:e,code:String(Math.floor(100000+Math.random()*900000)),exp:Date.now()+600000}:null;location.hash='#login/reset'}
+function doReset(){const c=$('#cd').value.trim(),p=$('#pw').value;fe('e_cd','');fe('e_pw','');
+if(!rst||Date.now()>rst.exp||c!=rst.code)return fe('e_cd','Invalid or expired code.');
+const pe=pwErr(p);if(pe)return fe('e_pw',pe);users.find(u=>u.email==rst.email).pw=p;rst=null;toast('Password updated. Please sign in.');location.hash='#login'}
+V.login=t=>{if(me)return location.hash='#dash';
+const pw=(id,l,ac)=>`<label class="fl sm mt" for="${id}">${l}</label><div style="position:relative"><input id="${id}" type="password" autocomplete="${ac}"><button type="button" class="eye" aria-label="Show password" onclick="togglePw('${id}',this)">${EYE}</button></div><div class="err" id="e_${id}"></div>`;
+const fld=(id,l,ty,ac)=>`<label class="fl sm mt" for="${id}">${l}</label><input id="${id}" type="${ty}" autocomplete="${ac}"><div class="err" id="e_${id}"></div>`;
+const em=fld('em','Email','email','email'),sub=l=>`<button class="btn" style="width:100%;margin-top:24px">${l}</button>`;
+let title,body,fn;
+if(t=='register'){title='Create account';fn='doReg()';body=fld('nm','Full name','text','name')+fld('un','Username','text','username')+`<label class="fl sm mt" for="cn">Code name</label><div style="display:flex;gap:8px"><input id="cn" type="text" autocomplete="off" maxlength="24" placeholder="e.g. Midnight Owl"><button type="button" class="btn g" onclick="rollCode()">Roll</button></div><div class="mt sm" style="margin-top:4px">Your secret alias, shown on your dashboard.</div><div class="err" id="e_cn"></div>`+em+pw('pw','Password','new-password')+pw('pw2','Confirm password','new-password')+`<label class="fl sm mt" for="crs">Course</label><select id="crs">${[...new Set(R.map(r=>r.course))].concat('BS Computer Engineering').map(c=>`<option>${c}</option>`).join('')}</select><label class="fl sm mt" for="yr">Year level</label><select id="yr">${[1,2,3,4].map(n=>`<option value="${n}">${yr(n)}</option>`).join('')}</select>`+sub('Create account')}
+else if(t=='forgot'){title='Forgot password';fn='doForgot()';body=`<p class="mt sm">Enter your email and we will generate a reset code.</p>`+em+sub('Send reset code')}
+else if(t=='reset'){title='Reset password';fn='doReset()';body=`<div class="banner">${rst?`Demo only: no email is sent. Your code is <b>${rst.code}</b>.`:'If that email is registered, a reset code was sent.'}</div>`+fld('cd','Reset code','text','one-time-code')+pw('pw','New password','new-password')+sub('Update password')}
+else{title='Sign in';fn='doLogin()';body=em+pw('pw','Password','current-password')+sub('Sign in')+`<p class="sm"><a class="mt" href="#login/forgot">Forgot password?</a></p>`}
+const tabs=(t=='forgot'||t=='reset')?'':`<div class="tabs"><a class="btn ${t=='register'?'g':''}" href="#login">Sign in</a><a class="btn ${t=='register'?'':'g'}" href="#login/register">Register</a></div>`;
+app.innerHTML=`${stage()}<div class="auth"><div class="brand"><span class="tag">Mastery in Progress</span><h1>Study smarter,<br>one <span class="rot"><span>reviewer</span><span>mock exam</span><span>quiz</span></span><br>at a time.</h1><p class="mt">Find the exact reviewer for your course, year and subject, then test yourself with mock exams.</p></div><div class="card" style="width:100%;max-width:420px;margin:0 auto"><h2 style="margin-top:0">${title}</h2><div class="banner">Demo mode: accounts live in this page only and vanish on reload. Try student@cca.demo / Student123, mod@cca.demo / Moderator123, admin@cca.demo / Admin12345.</div>${tabs}<form novalidate onsubmit="event.preventDefault();${fn}">${body}</form></div></div>`;const f=app.querySelector('input');if(f)f.focus()};
+const FC=[['PDF','Midterm Reviewer',6,14,60,-8,9],['DOCX','Normalization Notes',76,8,-40,6,11],['PPTX','HTML and CSS Slides',84,56,80,10,10],['QUIZ','Mock Final',3,64,-70,-6,12],['PDF','Heuristics Cheat Sheet',42,3,36,3,13],['QUIZ','Prelim Practice',58,78,-50,-9,10],['DOCX','SDLC and UML',20,82,50,7,14],['PDF','Big-O Reviewer',91,28,-30,-4,12]];
+function stage(k='lamp'){return `<div class="stage"><div class="phw"><div class="ph ${k}"></div></div><div class="shade ${k}"></div>${k!='lamp'?'':`<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>${FC.map((f,i)=>`<div class="fc" style="left:${f[2]}%;top:${f[3]}%;--d:${f[4]}"><div class="fi" style="--r:${f[5]}deg;animation-duration:${f[6]}s;animation-delay:-${i*2}s"><span class="ft">${f[0]}</span><b>${f[1]}</b><i></i><i></i><u></u></div></div>`).join('')}`}</div>`}
+addEventListener('pointermove',e=>{const s=document.querySelector('.stage');if(s){s.style.setProperty('--mx',e.clientX/innerWidth-.5);s.style.setProperty('--my',e.clientY/innerHeight-.5)}});
+const EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',EYE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/></svg>';
+function togglePw(id,b){const i=$('#'+id),show=i.type=='password';i.type=show?'text':'password';b.innerHTML=show?EYE_OFF:EYE;b.setAttribute('aria-label',show?'Hide password':'Show password')}
+let pend=null,pendX=null,pq='',pmine=false,ready=!window.supabase,obi=0;const obd=new Set();
+function obKey(){return 'mip_ob_'+(me.id||me.email)}
+function obDone(){try{if(localStorage.getItem(obKey()))return true}catch(e){}return obd.has(obKey())}
+function obFinish(go){obd.add(obKey());try{localStorage.setItem(obKey(),'1')}catch(e){}if(go=='#archive')pmine=true;obi=0;location.hash=go}
+function obSave(){const c=$('#oc').value,y=+$('#oy').value;
+Object.assign(me,{course:c,year:y,year_level:y});if(typeof sb!=='undefined'&&sb&&me.id)sb.from('profiles').update({course:c,year_level:y}).eq('id',me.id);obi=2;V.welcome()}
+V.welcome=()=>{if(!me)return location.hash='#login';
+const dots=[0,1,2].map(i=>`<i class="dot ${i<=obi?'on':''}"></i>`).join('');
+const co=[...new Set(R.map(r=>r.course))].concat('BS Computer Engineering'),cur=me.course||co[0],yy=me.year||me.year_level||1;
+const feat=[['Find','Filter by course, year, semester and subject to reach the exact reviewer.'],['Practice','Take timed mock exams and read the explanations after.'],['Track','Watch your scores and saved reviewers grow over time.']];
+let b;
+if(obi==0)b=`<h1>Welcome, ${esc(me.code_name||(user||'').split(' ')[0])}.</h1><p class="mt">MIPMIP means Mastery in Progress. Here is what you can do:</p><div class="grid" style="margin:18px 0">${feat.map(f=>`<div class="card"><h3>${f[0]}</h3><p class="mt sm" style="margin:0">${f[1]}</p></div>`).join('')}</div><div class="row"><button class="btn" onclick="obi=1;V.welcome()">Get started</button><button class="btn g" onclick="obFinish('#dash')">Skip</button></div>`;
+else if(obi==1)b=`<h1>Your details</h1><p class="mt">We use these to show the reviewers that match you. You can change them later.</p><label class="fl sm mt" for="oc">Course</label><select id="oc">${co.map(c=>`<option ${c==cur?'selected':''}>${c}</option>`).join('')}</select><label class="fl sm mt" for="oy">Year level</label><select id="oy">${[1,2,3,4].map(n=>`<option value="${n}" ${n==yy?'selected':''}>${yr(n)}</option>`).join('')}</select><div class="row"><button class="btn" onclick="obSave()">Continue</button><button class="btn g" onclick="obi=0;V.welcome()">Back</button></div>`;
+else b=`<h1>You are all set.</h1><p class="mt">${esc(me.course||'')} · ${yr(me.year||me.year_level||1)}</p><div class="grid" style="margin:18px 0"><div class="card"><h3>Browse my reviewers</h3><p class="mt sm">Start with materials for your course and year.</p><button class="btn" onclick="obFinish('#archive')">Open archive</button></div><div class="card"><h3>Try a mock exam</h3><p class="mt sm">Test yourself right away.</p><button class="btn g" onclick="obFinish('#exams')">Pick an exam</button></div></div><button class="btn g" onclick="obFinish('#dash')">Go to dashboard</button>`;
+app.innerHTML=`${stage('sun')}<div class="ob"><div class="dots">${dots}</div>${b}</div>`};
+function goSub(s){pend=s;location.hash=='#archive'?route():location.hash='#archive'}
+V.dash=()=>{if(!user)return location.hash='#login';
+const ex=hist.filter(h=>h.pct!=null),avg=ex.length?Math.round(ex.reduce((s,h)=>s+h.pct,0)/ex.length):0,ids=hist.filter(h=>typeof h=='number');
+const T=['Prelim','Midterm','Semi-Final','Final'].map(t=>[t,R.filter(r=>r.exam==t).length]),mx=Math.max(...T.map(x=>x[1]));
+const d=new Date(),days=[-2,-1,0,1,2,3].map(k=>{const x=new Date(d);x.setDate(d.getDate()+k);return `<div class="${k?'':'t'}">${x.toLocaleString('en',{weekday:'short'})}<b>${x.getDate()}</b></div>`}).join('');
+const sm=(i,l,v,n)=>`<div class="card"><div class="ch"><i>${i}</i>${l}</div><div class="big stat">${v}</div><div class="mt sm" style="margin-top:8px">${n}</div></div>`;
+app.innerHTML=`<div class="dtop"><div class="greet"><span>Hi,</span> ${esc(me.code_name||user)}!<br>What do you want to study?</div><div class="bento">
+<div class="card"><div class="ch"><i>▤</i>Reviewers<a href="#archive">View all</a></div><div class="big stat">${R.length}</div><div class="mt sm" style="margin:6px 0 14px">by exam type</div><div class="hb">${T.map(([t,n])=>`<div class="col" role="button" tabindex="0" title="${n} reviewer${n==1?'':'s'}: open ${t}" onclick="goExam('${t}')"><div class="bw"><div class="b ${n==mx?'solid':''}" style="height:${Math.max(12,n/mx*100)}%"></div></div><span>${t}</span></div>`).join('')}</div></div>
+<div class="card w2 hero2"><h2 style="font-size:34px;margin:0 0 6px">Mastery in Progress</h2><p class="mt" style="max-width:300px">Every reviewer you read and every mock exam you take moves you forward.</p><div class="row"><a class="btn" href="#exams">Take a mock exam</a><a class="btn g" href="#archive">Browse archive</a></div></div>
+<div class="card"><div class="ch">${d.toLocaleString('en',{month:'long',year:'numeric'})}</div><div class="wk">${days}</div>${E.slice(0,2).map(e=>`<div class="it"><b>${e.title.split(': ')[0]}</b><div class="mt sm">${e.subject}</div><a class="up sm" href="#exam/${e.id}">Start · ${e.mins} min</a></div>`).join('')}</div>
+${sm('★','Bookmarks',bm.size,'saved reviewers')}${sm('✓','Exams taken',ex.length,'this session')}
+<div class="card"><div class="ch"><i>%</i>Average score</div><div class="big">${avg}%</div><div class="bar" style="margin-top:14px"><i style="width:${avg}%"></i></div></div>${sm('↓','Downloads',R.reduce((s,r)=>s+r.dl,0),'across the archive')}</div></div>
+<h2>Bookmarked</h2><div class="grid">${bm.size?[...bm].map(i=>rc(R.find(r=>r.id==i))).join(''):'<div class="card mt">Nothing saved yet. Star a reviewer in the archive.</div>'}</div>
+<h2>Recently viewed</h2><div class="grid">${ids.length?ids.slice(0,3).map(i=>rc(R.find(r=>r.id==i))).join(''):'<div class="card mt">Open a reviewer and it will show up here.</div>'}</div>
+<h2>Exam history</h2>${ex.length?ex.map(h=>`<div class="card" style="margin-bottom:8px">${h.title} · ${h.pct}% · ${h.pass?'Passed':'Failed'}</div>`).join(''):'<div class="card mt">No attempts yet.</div>'}`};
+function setX(x){const s=$('#f_exam');s.value=x=='All'?'':x;s.dispatchEvent(new Event('input'));document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.textContent==x))}
+function route(){const[h,id]=(location.hash.slice(1)||'home').split('/');clearInterval(tick);if(!ready){app.innerHTML='<div class="mt" style="padding:60px;text-align:center">Loading…</div>';return}
+if(!me&&h!='login'){next=(V[h]&&h!='home')?location.hash:null;return location.hash='#login'}
+if(me&&h!='welcome'&&!obDone()){location.hash='#welcome';return}document.querySelectorAll('nav a,#side a,#tabs a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')=='#'+h));(V[h]||V.home)(id);app.classList.remove('pg');void app.offsetWidth;app.classList.add('pg');window.scrollTo(0,0);document.querySelectorAll('.stat').forEach(el=>{const n=+el.textContent;if(!/^\d+$/.test(el.textContent)||n<2)return;let k=0;const s=setInterval(()=>{k++;el.textContent=Math.round(n*k/20);if(k>=20)clearInterval(s)},30)})}
+addEventListener('hashchange',route);setUser();route();setTimeout(()=>{if(!ready){ready=true;route()}},6000);

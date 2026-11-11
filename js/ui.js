@@ -17,7 +17,7 @@ const d=document.createElement('div');d.className='mdl pal';
 d.innerHTML='<div class="mc"><input id="pq" placeholder="Jump to a page, reviewer or exam" autocomplete="off"><div id="pl"></div><div class="mt sm" style="padding:8px 4px 0">Up and down to move, Enter to open, Esc to close</div></div>';
 document.body.appendChild(d);let sel=0,L=[];const pq=d.querySelector('#pq'),pl=d.querySelector('#pl');
 const draw=()=>{const q=pq.value.toLowerCase().trim();L=items.filter(i=>!q||(i[0]+' '+i[1]).toLowerCase().includes(q)).slice(0,8);sel=Math.min(sel,Math.max(0,L.length-1));
-pl.innerHTML=L.length?L.map((i,k)=>`<div class="pi ${k==sel?'on':''}" data-k="${k}"><b>${i[0]}</b><span>${i[1]}</span></div>`).join(''):'<div class="mt" style="padding:14px">Nothing found.</div>'};
+pl.innerHTML=L.length?L.map((i,k)=>`<div class="pi ${k==sel?'on':''}" data-k="${k}"><b>${esc(i[0])}</b><span>${esc(i[1])}</span></div>`).join(''):'<div class="mt" style="padding:14px">Nothing found.</div>'};
 const go=i=>{d.remove();if(i[2]=='#out')confirmLogout();else location.hash=i[2]};
 pq.oninput=()=>{sel=0;draw()};pl.onclick=e=>{const p=e.target.closest('.pi');if(p)go(L[+p.dataset.k])};
 pq.onkeydown=e=>{if(e.key=='ArrowDown'){sel=Math.min(L.length-1,sel+1);draw();e.preventDefault()}else if(e.key=='ArrowUp'){sel=Math.max(0,sel-1);draw();e.preventDefault()}else if(e.key=='Enter'&&L[sel])go(L[sel]);else if(e.key=='Escape')d.remove()};

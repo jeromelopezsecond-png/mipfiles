@@ -26,7 +26,7 @@ window.doReg=async()=>{const n=$('#nm').value.trim(),u=$('#un').value.trim(),cn=
 const E={nm:n.length<2?'Enter your full name.':'',cn:/^[\w '\-]{2,24}$/.test(cn)?'':'Use 2 to 24 letters or numbers for your code name.',un:!/^[a-z0-9_]{3,20}$/i.test(u)?'Use 3 to 20 letters, numbers or underscores.':'',em:!emRe.test(e)?'Enter a valid email address.':'',pw:pwErr(p),pw2:p!=p2?'Passwords do not match.':''};
 Object.keys(E).forEach(k=>fe('e_'+k,E[k]));if(Object.values(E).some(Boolean))return;
 const {data:free}=await sb.rpc('username_available',{u:u});if(free===false)return fe('e_un','That username is taken.');
-const {data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:back(),data:{full_name:n.slice(0,40),username:u.toLowerCase(),code_name:cn,course:$('#crs').value,year_level:+$('#yr').value}}});
+const {data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:back(),data:{full_name:n.slice(0,40),username:u.toLowerCase(),code_name:cn,year_level:+$('#yr').value}}});
 if(error)return fe('e_em',error.message);
 if(data.user&&data.user.identities&&!data.user.identities.length)return fe('e_em','That email is already registered.');
 if(!data.session){lastEmail=e;location.hash='#login/check'}};
@@ -42,7 +42,7 @@ const {data}=await sb.from('profiles').select('*').eq('id',s.user.id).maybeSingl
 if(data&&data.suspended){await sb.auth.signOut();toast('This account is suspended.');return}
 me=data?{...data,name:data.full_name}:{name:s.user.email,email:s.user.email,role:'student'};user=me.name;setUser()}
 sb.auth.onAuthStateChange((ev,s)=>{if(ev=='PASSWORD_RECOVERY')recov=true;
-setTimeout(async()=>{try{await loadProfile(s)}catch(e){console.error(e)}ready=true;
+setTimeout(async()=>{try{await loadProfile(s);if(me&&typeof loadContent=='function')await loadContent()}catch(e){console.error(e)}ready=true;
 if(recov){location.hash=='#login/reset'?route():location.hash='#login/reset';return}
 if(confirmed&&me&&(ev=='SIGNED_IN'||ev=='INITIAL_SESSION')){location.hash=='#login/confirmed'?route():location.hash='#login/confirmed';return}
 if(me&&location.hash.startsWith('#login')&&!location.hash.startsWith('#login/confirmed')){const n=next||'#dash';next=null;location.hash=n;return}

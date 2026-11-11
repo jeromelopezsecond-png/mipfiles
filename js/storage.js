@@ -9,6 +9,7 @@ if(typeof sb!=='undefined'&&sb){
     const r=R.find(x=>x.id==id);
     const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(filePath(r),120,{download:r.title+'.'+r.type.toLowerCase()});
     if(error||!data){toast('File not uploaded yet.');return}
+    r.dl++;sb.rpc('bump_download',{rid:+id}).then(()=>{},()=>{});
     location.href=data.signedUrl;
   };
   const _r=V.r;

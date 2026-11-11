@@ -24,6 +24,7 @@ const E=[
 {t:"tf",q:"Binary search needs a sorted array.",c:["True","False"],a:"True",e:"Halving the range only works on sorted data."},
 {t:"id",q:"Identify the Big-O of binary search.",a:"o(log n)",e:"Each step halves the search space."},
 {t:"mc",q:"Which structure follows FIFO order?",c:["Stack","Queue","Tree","Set"],a:"Queue",e:"A queue serves the earliest item first."}]}];
+const SUBJ=[...new Set(R.map(r=>r.subject))].sort();
 const $=s=>document.querySelector(s),app=$('#app');
 let user=null,bm=new Set(),hist=[],tick=null,X=null;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)};
@@ -38,7 +39,7 @@ function rc(r){return `<div class="card x-${r.exam.replace(/\W/g,'')}"><div styl
 function dl(id){if(!user){toast('Sign in (demo) to download');return}R.find(r=>r.id==id).dl++;toast('Demo: no file attached yet. Connect Supabase Storage.')}
 const V={
 home(){app.innerHTML=`<div class="hero"><span class="tag">Private academic archive</span><h1>Your Academic Knowledge. One <mark>Secret</mark> Archive.</h1><p>Discover reviewers, explore academic resources, and prepare for every examination. Everything you need to study, organized in one place.</p><div class="row"><a class="btn" href="#archive">Explore the Archive</a><a class="btn g" href="#exams">Take a Mock Exam</a></div></div>
-<div class="mq"><div>${(s=>s+s)([...new Set(R.map(r=>r.subject))].map(x=>x+' ✦ ').join(''))}</div></div><div class="grid">${[[R.length,'Reviewers'],[new Set(R.map(r=>r.subject)).size,'Subjects'],[new Set(R.map(r=>r.course)).size,'Courses'],[E.length,'Practice exams']].map(s=>`<div class="card"><div class="stat">${s[0]}</div><div class="mt">${s[1]}</div></div>`).join('')}</div>
+<div class="mq"><div>${(s=>s+s)([...new Set(R.map(r=>r.subject))].map(x=>x+' ✦ ').join(''))}</div></div><div class="grid">${[[R.length,'Reviewers'],[new Set(R.map(r=>r.subject)).size,'Subjects'],[SUBJ.length,'Subjects'],[E.length,'Practice exams']].map(s=>`<div class="card"><div class="stat">${s[0]}</div><div class="mt">${s[1]}</div></div>`).join('')}</div>
 <h2>Recently uploaded</h2><div class="grid">${[...R].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(rc).join('')}</div>
 <h2>Most downloaded</h2><div class="grid">${[...R].sort((a,b)=>b.dl-a.dl).slice(0,3).map(rc).join('')}</div>`},
 archive(){const opt=(k,l,f)=>`<select id="f_${k}" aria-label="${l}"><option value="">${l}</option>${[...new Set(R.map(f))].sort().map(v=>`<option>${v}</option>`).join('')}</select>`;
@@ -61,14 +62,14 @@ const sh=a=>[...a].sort(()=>Math.random()-.5);
 X={e,qs:sh(e.q).map(q=>({...q,c:q.c&&q.t=='mc'?sh(q.c):q.c})),a:{},f:new Set(),i:0,end:Date.now()+e.mins*60000,start:Date.now()};
 clearInterval(tick);tick=setInterval(()=>{const s=Math.max(0,Math.round((X.end-Date.now())/1000));const t=$('#tm');if(t)t.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;if(!s)submit()},500);xr()}};
 function xr(){const{qs,i,a,f,e}=X,q=qs[i];
-app.innerHTML=`<div style="display:flex;justify-content:space-between"><b>${e.title}</b><span class="timer" id="tm"></span></div>
+app.innerHTML=`<div style="display:flex;justify-content:space-between"><b>${esc(e.title)}</b><span class="timer" id="tm"></span></div>
 <div class="qn">${qs.map((_,k)=>`<button class="${a[k]!=null&&a[k]!==''?'ans':''} ${k==i?'cur':''} ${f.has(k)?'flag':''}" onclick="X.i=${k};xr()" aria-label="Question ${k+1}">${k+1}</button>`).join('')}</div>
-<div class="card"><div class="mt sm">Question ${i+1} of ${qs.length}</div><h3 style="margin:8px 0 12px">${q.q}</h3>
+<div class="card"><div class="mt sm">Question ${i+1} of ${qs.length}</div><h3 style="margin:8px 0 12px">${esc(q.q)}</h3>
 ${q.t=='id'?`<input id="idn" placeholder="Type your answer" value="${esc(a[i]||'')}" oninput="X.a[X.i]=this.value">`:q.c.map((c,ci)=>`<button class="opt ${a[i]==c?'sel':''}" onclick="X.a[X.i]=this.dataset.v;xr()" data-v="${esc(c)}"><kbd>${ci+1}</kbd>${esc(c)}</button>`).join('')}</div>
 <p class="mt sm">Tip: press 1 to 4 to answer, the arrow keys to move, F to flag.</p><div class="row"><button class="btn g" onclick="X.i=Math.max(0,X.i-1);xr()">Previous</button><button class="btn g" onclick="X.i=Math.min(X.qs.length-1,X.i+1);xr()">Next</button><button class="btn g" onclick="X.f.has(X.i)?X.f.delete(X.i):X.f.add(X.i);xr()">${f.has(i)?'Unflag':'Flag'}</button><button class="btn" onclick="confirmSubmit()">Submit</button></div>`}
 function confirmSubmit(){const un=X.qs.filter((_,k)=>!X.a[k]).length;ask('Submit examination?',un?`${un} question${un>1?'s':''} still unanswered.`:'You have answered every question.','Submit',submit)}
 function submit(){clearInterval(tick);const{qs,a,e}=X;let ok=0;
-const rows=qs.map((q,k)=>{const u=(a[k]||'').toString(),c=q.t=='id'?u.trim().toLowerCase()==q.a:u==q.a;if(c)ok++;return `<div class="card" style="margin-bottom:10px"><h3>${k+1}. ${q.q}</h3><div class="${c?'':'mt'}" style="color:${c?'var(--ok)':'var(--bad)'}">Your answer: ${esc(u||'(blank)')}</div><div>Correct: ${esc(q.a)}</div><div class="mt sm">${q.e}</div></div>`}).join('');
+const rows=qs.map((q,k)=>{const u=(a[k]||'').toString(),c=q.t=='id'?u.trim().toLowerCase()==q.a:u==q.a;if(c)ok++;return `<div class="card" style="margin-bottom:10px"><h3>${k+1}. ${esc(q.q)}</h3><div class="${c?'':'mt'}" style="color:${c?'var(--ok)':'var(--bad)'}">Your answer: ${esc(u||'(blank)')}</div><div>Correct: ${esc(q.a)}</div><div class="mt sm">${esc(q.e||'')}</div></div>`}).join('');
 const pct=Math.round(ok/qs.length*100),pass=pct>=e.pass,secs=Math.round((Date.now()-X.start)/1000);
 hist.push({title:e.title,pct,pass,secs});X=null;
 app.innerHTML=`<h2 style="margin-top:0">Results</h2><div class="grid"><div class="card"><div class="ring" style="--p:${pct}"><span>${ok}/${qs.length}</span></div><div class="mt" style="margin-top:10px">Score (${pct}%)</div></div><div class="card"><div class="stat" style="color:${pass?'var(--ok)':'var(--bad)'}">${pass?'Passed':'Failed'}</div><div class="mt">Passing: ${e.pass}%</div></div><div class="card"><div class="stat">${Math.floor(secs/60)}m ${secs%60}s</div><div class="mt">Time used</div></div></div><h2>Review</h2>${rows}<div class="row"><a class="btn" href="#exam/${e.id}">Retake</a><a class="btn g" href="#exams">All exams</a></div>`;if(pass&&typeof confetti=='function')confetti()}
@@ -95,7 +96,7 @@ const u=users.find(x=>x.email==e&&x.pw==p);if(!u){fails[e]=(fails[e]||0)+1;retur
 function doReg(){const n=$('#nm').value.trim(),u=$('#un').value.trim(),cn=$('#cn').value.trim(),e=$('#em').value.trim().toLowerCase(),p=$('#pw').value,p2=$('#pw2').value;
 const E={nm:n.length<2?'Enter your full name.':'',cn:/^[\w '\-]{2,24}$/.test(cn)?'':'Use 2 to 24 letters or numbers for your code name.',un:!/^[a-z0-9_]{3,20}$/i.test(u)?'Use 3 to 20 letters, numbers or underscores.':users.some(x=>(x.username||'')==u.toLowerCase())?'That username is taken.':'',em:!emRe.test(e)?'Enter a valid email address.':users.some(x=>x.email==e)?'That email is already registered.':'',pw:pwErr(p),pw2:p!=p2?'Passwords do not match.':''};
 Object.keys(E).forEach(k=>fe('e_'+k,E[k]));if(Object.values(E).some(Boolean))return;
-signIn({email:e,pw:p,name:n.slice(0,40),username:u.toLowerCase(),code_name:cn,role:'student',course:$('#crs').value,year:+$('#yr').value});users.push(me)}
+signIn({email:e,pw:p,name:n.slice(0,40),username:u.toLowerCase(),code_name:cn,role:'student',year:+$('#yr').value});users.push(me)}
 function doForgot(){const e=$('#em').value.trim().toLowerCase();fe('e_em','');if(!emRe.test(e))return fe('e_em','Enter a valid email address.');
 rst=users.some(u=>u.email==e)?{email:e,code:String(Math.floor(100000+Math.random()*900000)),exp:Date.now()+600000}:null;location.hash='#login/reset'}
 function doReset(){const c=$('#cd').value.trim(),p=$('#pw').value;fe('e_cd','');fe('e_pw','');
@@ -106,7 +107,7 @@ const pw=(id,l,ac)=>`<label class="fl sm mt" for="${id}">${l}</label><div style=
 const fld=(id,l,ty,ac)=>`<label class="fl sm mt" for="${id}">${l}</label><input id="${id}" type="${ty}" autocomplete="${ac}"><div class="err" id="e_${id}"></div>`;
 const em=fld('em','Email','email','email'),sub=l=>`<button class="btn" style="width:100%;margin-top:24px">${l}</button>`;
 let title,body,fn;
-if(t=='register'){title='Create account';fn='doReg()';body=fld('nm','Full name','text','name')+fld('un','Username','text','username')+`<label class="fl sm mt" for="cn">Code name</label><div style="display:flex;gap:8px"><input id="cn" type="text" autocomplete="off" maxlength="24" placeholder="e.g. Midnight Owl"><button type="button" class="btn g" onclick="rollCode()">Roll</button></div><div class="mt sm" style="margin-top:4px">Your secret alias, shown on your dashboard.</div><div class="err" id="e_cn"></div>`+em+pw('pw','Password','new-password')+pw('pw2','Confirm password','new-password')+`<label class="fl sm mt" for="crs">Course</label><select id="crs">${[...new Set(R.map(r=>r.course))].concat('BS Computer Engineering').map(c=>`<option>${c}</option>`).join('')}</select><label class="fl sm mt" for="yr">Year level</label><select id="yr">${[1,2,3,4].map(n=>`<option value="${n}">${yr(n)}</option>`).join('')}</select>`+sub('Create account')}
+if(t=='register'){title='Create account';fn='doReg()';body=fld('nm','Full name','text','name')+fld('un','Username','text','username')+`<label class="fl sm mt" for="cn">Code name</label><div style="display:flex;gap:8px"><input id="cn" type="text" autocomplete="off" maxlength="24" placeholder="e.g. Midnight Owl"><button type="button" class="btn g" onclick="rollCode()">Roll</button></div><div class="mt sm" style="margin-top:4px">Your secret alias, shown on your dashboard.</div><div class="err" id="e_cn"></div>`+em+pw('pw','Password','new-password')+pw('pw2','Confirm password','new-password')+`<label class="fl sm mt" for="yr">Year level</label><select id="yr">${[1,2,3,4].map(n=>`<option value="${n}">${yr(n)}</option>`).join('')}</select>`+sub('Create account')}
 else if(t=='forgot'){title='Forgot password';fn='doForgot()';body=`<p class="mt sm">Enter your email and we will generate a reset code.</p>`+em+sub('Send reset code')}
 else if(t=='reset'){title='Reset password';fn='doReset()';body=`<div class="banner">${rst?`Demo only: no email is sent. Your code is <b>${rst.code}</b>.`:'If that email is registered, a reset code was sent.'}</div>`+fld('cd','Reset code','text','one-time-code')+pw('pw','New password','new-password')+sub('Update password')}
 else{title='Sign in';fn='doLogin()';body=em+pw('pw','Password','current-password')+sub('Sign in')+`<p class="sm"><a class="mt" href="#login/forgot">Forgot password?</a></p>`}
@@ -121,16 +122,16 @@ let pend=null,pendX=null,pq='',pmine=false,ready=!window.supabase,obi=0;const ob
 function obKey(){return 'mip_ob_'+(me.id||me.email)}
 function obDone(){try{if(localStorage.getItem(obKey()))return true}catch(e){}return obd.has(obKey())}
 function obFinish(go){obd.add(obKey());try{localStorage.setItem(obKey(),'1')}catch(e){}if(go=='#archive')pmine=true;obi=0;location.hash=go}
-function obSave(){const c=$('#oc').value,y=+$('#oy').value;
-Object.assign(me,{course:c,year:y,year_level:y});if(typeof sb!=='undefined'&&sb&&me.id)sb.from('profiles').update({course:c,year_level:y}).eq('id',me.id);obi=2;V.welcome()}
+function obSave(){const y=+$('#oy').value;
+Object.assign(me,{year:y,year_level:y});if(typeof sb!=='undefined'&&sb&&me.id)sb.from('profiles').update({year_level:y}).eq('id',me.id);obi=2;V.welcome()}
 V.welcome=()=>{if(!me)return location.hash='#login';
 const dots=[0,1,2].map(i=>`<i class="dot ${i<=obi?'on':''}"></i>`).join('');
-const co=[...new Set(R.map(r=>r.course))].concat('BS Computer Engineering'),cur=me.course||co[0],yy=me.year||me.year_level||1;
+const yy=me.year||me.year_level||1;
 const feat=[['Find','Filter by course, year, semester and subject to reach the exact reviewer.'],['Practice','Take timed mock exams and read the explanations after.'],['Track','Watch your scores and saved reviewers grow over time.']];
 let b;
 if(obi==0)b=`<h1>Welcome, ${esc(me.code_name||(user||'').split(' ')[0])}.</h1><p class="mt">MIPMIP means Mastery in Progress. Here is what you can do:</p><div class="grid" style="margin:18px 0">${feat.map(f=>`<div class="card"><h3>${f[0]}</h3><p class="mt sm" style="margin:0">${f[1]}</p></div>`).join('')}</div><div class="row"><button class="btn" onclick="obi=1;V.welcome()">Get started</button><button class="btn g" onclick="obFinish('#dash')">Skip</button></div>`;
-else if(obi==1)b=`<h1>Your details</h1><p class="mt">We use these to show the reviewers that match you. You can change them later.</p><label class="fl sm mt" for="oc">Course</label><select id="oc">${co.map(c=>`<option ${c==cur?'selected':''}>${c}</option>`).join('')}</select><label class="fl sm mt" for="oy">Year level</label><select id="oy">${[1,2,3,4].map(n=>`<option value="${n}" ${n==yy?'selected':''}>${yr(n)}</option>`).join('')}</select><div class="row"><button class="btn" onclick="obSave()">Continue</button><button class="btn g" onclick="obi=0;V.welcome()">Back</button></div>`;
-else b=`<h1>You are all set.</h1><p class="mt">${esc(me.course||'')} · ${yr(me.year||me.year_level||1)}</p><div class="grid" style="margin:18px 0"><div class="card"><h3>Browse my reviewers</h3><p class="mt sm">Start with materials for your course and year.</p><button class="btn" onclick="obFinish('#archive')">Open archive</button></div><div class="card"><h3>Try a mock exam</h3><p class="mt sm">Test yourself right away.</p><button class="btn g" onclick="obFinish('#exams')">Pick an exam</button></div></div><button class="btn g" onclick="obFinish('#dash')">Go to dashboard</button>`;
+else if(obi==1)b=`<h1>Your details</h1><p class="mt">We use these to show the reviewers that match you. You can change them later.</p><label class="fl sm mt" for="oy">Year level</label><select id="oy">${[1,2,3,4].map(n=>`<option value="${n}" ${n==yy?'selected':''}>${yr(n)}</option>`).join('')}</select><div class="row"><button class="btn" onclick="obSave()">Continue</button><button class="btn g" onclick="obi=0;V.welcome()">Back</button></div>`;
+else b=`<h1>You are all set.</h1><p class="mt">${yr(me.year||me.year_level||1)}</p><div class="grid" style="margin:18px 0"><div class="card"><h3>Browse my reviewers</h3><p class="mt sm">Start with materials for your course and year.</p><button class="btn" onclick="obFinish('#archive')">Open archive</button></div><div class="card"><h3>Try a mock exam</h3><p class="mt sm">Test yourself right away.</p><button class="btn g" onclick="obFinish('#exams')">Pick an exam</button></div></div><button class="btn g" onclick="obFinish('#dash')">Go to dashboard</button>`;
 app.innerHTML=`${stage('sun')}<div class="ob"><div class="dots">${dots}</div>${b}</div>`};
 function goSub(s){pend=s;location.hash=='#archive'?route():location.hash='#archive'}
 V.dash=()=>{if(!user)return location.hash='#login';

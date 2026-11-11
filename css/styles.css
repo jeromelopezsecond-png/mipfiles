@@ -158,7 +158,7 @@ body.in #toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 
 /* interactive layer */
 .card{background-image:radial-gradient(240px circle at var(--sx,-999px) var(--sy,-999px),#d6a15d1f,transparent 70%)}
-.pg{animation:pg .35s ease}@keyframes pg{from{opacity:0;transform:translateY(8px)}}
+.pg>*:not(.stage){animation:pg .35s ease}@keyframes pg{from{opacity:0;transform:translateY(8px)}}
 .bar2{display:flex;align-items:center;gap:10px;margin:2px 0 14px}.bar2 select{width:auto;margin-left:auto}
 .hb .col{cursor:pointer}.hb .col:hover .b{filter:brightness(1.25)}.hb .col:hover span{color:var(--tx)}
 .opt kbd{display:inline-block;min-width:22px;margin-right:10px;padding:1px 6px;border-radius:6px;background:var(--sf2);color:var(--mt);font:500 12px Inter,sans-serif;text-align:center}.opt.sel kbd{background:var(--ac);color:var(--btx)}

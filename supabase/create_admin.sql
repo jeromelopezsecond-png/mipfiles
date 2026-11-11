@@ -9,6 +9,7 @@ declare
   v_username text := 'admin';
   v_code     text := 'Head Archivist';
   uid uuid;
+  c text;
 begin
   if v_email like 'CHANGE_ME%' or v_password like 'CHANGE_ME%' then
     raise exception 'Edit v_email and v_password first';
@@ -27,6 +28,16 @@ begin
     insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
     values (gen_random_uuid(), uid, uid::text, jsonb_build_object('sub', uid::text, 'email', lower(v_email)),
       'email', now(), now(), now());
+    -- Newer Supabase versions fail login ("Database error querying schema") if these are NULL.
+    foreach c in array array['email_change_token_current','phone_change','phone_change_token','reauthentication_token'] loop
+      begin
+        execute format('update auth.users set %I = coalesce(%I, '''') where id = $1', c, c) using uid;
+      exception when undefined_column then null;
+      end;
+    end loop;
   end if;
   update public.profiles set role = 'admin' where id = uid;
+  if not found then
+    raise exception 'No profile row for this user. Run setup.sql first, then run this script again.';
+  end if;
 end $$;

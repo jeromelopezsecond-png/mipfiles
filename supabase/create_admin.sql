@@ -3,8 +3,8 @@
 -- If the email already signed up on the site, this just promotes it to admin.
 do $$
 declare
-  v_email    text := 'CHANGE_ME@example.com';
-  v_password text := 'CHANGE_ME_to_a_strong_password';
+  v_email    text := 'admin@mipmip.com';
+  v_password text := 'Saranghae0@';
   v_name     text := 'Site Admin';
   v_username text := 'admin';
   v_code     text := 'Head Archivist';

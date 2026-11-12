@@ -4,8 +4,8 @@
 const SITE={
   name:'MIPMIP Files',
   tagline:'Mastery in Progress',
-  owner:'Jerome Adler',                      // shown in the footer and the policy
-  dpo:'Jerome Adler',                        // Data Protection Officer (person who answers privacy requests)
+  owner:'Akinomori',                      // shown in the footer and the policy
+  dpo:'Akinomori',                        // Data Protection Officer (person who answers privacy requests)
   email:'jeromelopezsecond@gmail.com',            // <-- CHANGE: where people send privacy requests and questions
   address:'Philippines',                     // <-- CHANGE: your address or city, if you want to show it
   hosting:'Cloudflare',                      // where the website is hosted

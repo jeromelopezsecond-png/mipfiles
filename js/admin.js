@@ -16,7 +16,7 @@ function injectSchoolSwitch(){
   const w=document.getElementById('who');if(!w||!isSuper()||SCHOOLS.length<1)return;
   w.insertAdjacentHTML('afterbegin',schoolSelect('sch_sw'));
 }
-window.setUser=function(){_setUser();injectAdminLinks();injectSchoolSwitch();mountFab();sideSubs()};
+window.setUser=function(){_setUser();injectAdminLinks();injectSchoolSwitch();mountFab();sideSubs();if(typeof ensureConsent=='function')ensureConsent()};
 
 /* ----- floating + button ----- */
 const FAB_ITEMS=[['▤','Upload reviewer','Add a file for students','openReviewerForm'],['✎','Create mock exam','Write the questions','openExamForm'],['◈','Add subject','New option in the subject list','openSubjectForm'],['◉','Add course','Choose its subjects per year','openCourseForm']];
@@ -72,12 +72,12 @@ function openReviewerForm(id){
 <div><label class="fl sm mt" for="rv_m">Semester</label><select id="rv_m"><option value="1" ${r&&r.sem==1||!r?'selected':''}>Sem 1</option><option value="2" ${r&&r.sem==2?'selected':''}>Sem 2</option></select></div>
 <div><label class="fl sm mt" for="rv_c">Section (optional)</label><input id="rv_c" maxlength="20" placeholder="e.g. BSIS-II201" autocomplete="off" value="${r?esc(r.section):''}"></div></div>
 <label class="fl sm mt" for="rv_p">Topics (separate with commas)</label><input id="rv_p" placeholder="Joins, Normal forms, ERD" autocomplete="off" value="${r?esc(r.topics.join(', ')):''}">
-<label class="fl sm mt" for="rv_f">${r?'Replace file (optional)':'File'} (PDF, DOCX or PPTX, up to ${MAXMB} MB)</label><input type="file" id="rv_f" accept=".pdf,.docx,.pptx"><div class="err" id="e_rv_f"></div>
+<label class="fl sm mt" for="rv_f">${r?'Replace file (optional)':'File'} (any file type, up to ${MAXMB} MB)</label><input type="file" id="rv_f"><div class="err" id="e_rv_f"></div>
 <div class="row" style="justify-content:flex-end"><button class="btn g" data-n>Cancel</button><button class="btn" id="rv_ok">${r?'Save changes':'Upload'}</button></div>`);
   sddInit('sdd_rv',{options:()=>SUBJ,value:r?r.subject:'',onChange:()=>fe('e_rv_s','')});
   $('#rv_ok').onclick=async()=>{
-    const t=$('#rv_t').value.trim(),s=sddGet('sdd_rv'),f=$('#rv_f').files[0],ext=f?f.name.split('.').pop().toLowerCase():'';
-    const ferr=!f?(r?'':'Choose a file to upload.'):!['pdf','docx','pptx'].includes(ext)?'Only PDF, DOCX or PPTX files.':f.size>MAXMB*1048576?'File is over '+MAXMB+' MB.':'';
+    const t=$('#rv_t').value.trim(),s=sddGet('sdd_rv'),f=$('#rv_f').files[0],ext=f?fileExt(f):'';
+    const ferr=!f?(r?'':'Choose a file to upload.'):!extOk(ext)?'The file needs an extension, like .pdf or .xlsx.':f.size>MAXMB*1048576?'File is over '+MAXMB+' MB.':'';
     fe('e_rv_t',t.length<3?'Enter a title (at least 3 characters).':'');fe('e_rv_s',s?'':'Choose a subject.');fe('e_rv_f',ferr);
     if(t.length<3||!s||ferr)return;
     const o={title:t,subject:s,exam:$('#rv_x').value,year:+$('#rv_y').value,sem:+$('#rv_m').value,section:$('#rv_c').value.trim().toUpperCase(),topics:$('#rv_p').value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,12),by:byName()};
@@ -190,7 +190,7 @@ V.admin=()=>{
   app.innerHTML=`<div class="ah"><h2 style="margin:0">Admin panel</h2><div class="row" style="margin:0"><button class="btn g" onclick="openSubjectForm()">Add subject</button><button class="btn g" onclick="openCourseForm()">Add course</button><button class="btn g" onclick="openExamForm()">Create exam</button><button class="btn" onclick="openReviewerForm()">Upload reviewer</button></div></div>
 <div class="row" style="margin:14px 0 0;align-items:center"><span class="mt sm">School</span>${isSuper()&&SCHOOLS.length?schoolSelect('sch_sw2'):`<span class="tag">${esc(schoolName()||'Not set')}</span>`}</div>
 ${live()?'':'<div class="banner" style="margin-top:14px">Demo mode: Supabase is not connected, so changes live only in this browser tab.</div>'}
-<div class="chips" style="margin-top:16px">${tab('files','Files')}${tab('subjects','Subjects')}${tab('courses','Courses')}${isSuper()?tab('schools','Schools'):''}${isAdmin()?tab('users','Users'):''}</div><input type="file" id="adm_f" hidden accept=".pdf,.docx,.pptx" onchange="admUpload(this)"><div id="adm"></div>`;
+<div class="chips" style="margin-top:16px">${tab('files','Files')}${tab('subjects','Subjects')}${tab('courses','Courses')}${isSuper()?tab('schools','Schools'):''}${isAdmin()?tab('users','Users'):''}</div><input type="file" id="adm_f" hidden onchange="admUpload(this)"><div id="adm"></div>`;
   admTab=='users'&&isAdmin()?admUsers():admTab=='subjects'?admSubjects():admTab=='courses'?admCourses():admTab=='schools'&&isSuper()?admSchools():admFiles();
 };
 function admGo(t){admTab=t;V.admin()}
@@ -213,14 +213,11 @@ function admPick(id){admId=id;$('#adm_f').click()}
 async function admUpload(inp){
   const f=inp.files[0];inp.value='';
   if(!f||!admId||!live())return;
-  const r=R.find(x=>x.id==admId),ext=(f.name.split('.').pop()||'').toLowerCase();
-  if(ext!==r.type.toLowerCase())return toast('This reviewer needs a .'+r.type.toLowerCase()+' file.');
+  const r=R.find(x=>x.id==admId);
+  if(!extOk(fileExt(f)))return toast('The file needs an extension, like .pdf or .xlsx.');
   if(f.size>MAXMB*1048576)return toast('File is over '+MAXMB+' MB.');
   toast('Uploading…');
-  const {error}=await sb.storage.from(BUCKET).upload(filePath(r),f,{upsert:true,contentType:f.type||undefined});
-  if(error)return toast(/row-level|polic/i.test(error.message)?'Not allowed. Check your role and run storage.sql.':error.message);
-  r.size=fmtSize(f.size);sb.from('reviewers').update({file_size:r.size}).eq('id',r.id).then(()=>{},()=>{});
-  toast('Uploaded');admFiles();
+  if(await updateReviewer(r.id,{title:r.title,subject:r.subject,year:r.year,section:r.section,sem:r.sem,exam:r.exam,topics:r.topics},f)){toast('Uploaded');admFiles()}
 }
 function admDel(id){
   const r=R.find(x=>x.id==id);

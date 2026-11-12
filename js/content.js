@@ -3,6 +3,8 @@
 const isStaff=()=>!!me&&['moderator','admin'].includes(me.role);
 const isAdmin=()=>!!me&&me.role==='admin';
 const live=()=>typeof sb!=='undefined'&&!!sb;
+const fileExt=f=>{const i=f.name.lastIndexOf('.');return i>0?f.name.slice(i+1).toLowerCase():''};
+const extOk=e=>/^[a-z0-9]{1,10}$/.test(e);
 const MAXMB=50,fmtSize=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
 const svg=p=>'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 const ICON_CH=svg('<path d="m6 9 6 6 6-6"/>');
@@ -75,7 +77,7 @@ async function delSubject(name){
   SUBJ.splice(SUBJ.indexOf(name),1);for(let i=CS.length-1;i>=0;i--)if(CS[i].subject==name)CS.splice(i,1);sideSubs();return true;
 }
 async function addReviewer(o,f){
-  const ext=f.name.split('.').pop().toLowerCase(),type=ext.toUpperCase(),size=fmtSize(f.size);
+  const ext=fileExt(f),type=ext.toUpperCase(),size=fmtSize(f.size);
   if(!live()){R.unshift({id:nextId(R),title:o.title,subject:o.subject,year:o.year,section:o.section,sem:o.sem,exam:o.exam,type,size,by:o.by,date:new Date().toISOString().slice(0,10),topics:o.topics,dl:0});sideSubs();return true}
   const {data,error}=await sb.from('reviewers').insert({...sc(),title:o.title,subject:o.subject,year_level:o.year,section:o.section||null,sem:o.sem,exam:o.exam,file_type:type,file_size:size,uploaded_by:o.by,topics:o.topics}).select().single();
   if(error){toast(dberr(error));return false}
@@ -141,9 +143,9 @@ const _vlogin=V.login;V.login=t=>{_vlogin(t);if(t=='register')fillSchools()};
 async function updateReviewer(id,o,f){
   const r=R.find(x=>x.id==id);if(!r)return false;
   let type=r.type,size=r.size;
-  if(f){const ext=f.name.split('.').pop().toLowerCase();type=ext.toUpperCase();size=fmtSize(f.size)}
+  if(f){const ext=fileExt(f);type=ext.toUpperCase();size=fmtSize(f.size)}
   if(!live()){Object.assign(r,{title:o.title,subject:o.subject,year:o.year,section:o.section,sem:o.sem,exam:o.exam,topics:o.topics,type,size});sideSubs();return true}
-  if(f){const old=filePath(r),ext=f.name.split('.').pop().toLowerCase(),np=id+'.'+ext;
+  if(f){const old=filePath(r),ext=fileExt(f),np=id+'.'+ext;
     const up=await sb.storage.from(BUCKET).upload(np,f,{upsert:true,contentType:f.type||undefined});
     if(up.error){toast('Upload failed: '+up.error.message);return false}
     if(old!==np)await sb.storage.from(BUCKET).remove([old])}
@@ -363,21 +365,36 @@ V.settings=()=>{
   };
 };
 
-/* ---------- chat ---------- */
-const CH={room:'',msgs:[],ch:null,last:0};
-const DEMO_CHAT=[{id:1,course:null,author:'Head Archivist',author_role:'admin',body:'Welcome to the global chat! Keep it kind and study-related.',created_at:new Date(Date.now()-36e5).toISOString()}];
-function chatMsg(m){
-  const own=me&&(m.user_id?m.user_id===me.id:m.author===(me.code_name||me.name));
-  const t=new Date(m.created_at),today=new Date().toDateString()==t.toDateString();
-  const time=t.toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'})+(today?'':' · '+t.toLocaleDateString('en',{month:'short',day:'numeric'}));
-  const badge=m.author_role&&m.author_role!='student'?`<span class="rb">${esc(m.author_role)}</span>`:'';
-  const del=own||isStaff()?`<button class="cd" aria-label="Delete message" title="Delete" onclick="chatDel(${m.id})">${ICON_TRASH}</button>`:'';
-  return `<div class="cmr ${own?'own':''}"><div class="cb"><div class="cu"><b>${esc(m.author)}</b>${badge}<span>${esc(time)}</span>${del}</div><div class="ctx">${esc(m.body)}</div></div></div>`;
+/* ---------- chat (Messenger style, with @mentions) ---------- */
+const CH={room:'',msgs:[],members:[],ch:null,last:0,pop:{items:[],i:0,at:-1,pos:0}};
+const DEMO_CHAT=[{id:1,course:null,author:'Head Archivist',author_role:'admin',body:'Welcome to the global chat! Keep it kind and study-related. Type @ to mention someone.',created_at:new Date(Date.now()-36e5).toISOString()}];
+const myName=()=>((me&&(me.code_name||me.name))||'').trim();
+const isOwnMsg=m=>!!me&&(m.user_id?m.user_id===me.id:m.author===myName());
+const reEsc=t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const initial=n=>esc(String(n||'?').trim().charAt(0).toUpperCase()||'?');
+const nameList=()=>[...new Set([...CH.members.map(m=>m.name),...CH.msgs.map(m=>m.author)].filter(Boolean))];
+function msgHTML(text){
+  let h=esc(text);const names=nameList().sort((a,b)=>b.length-a.length);
+  if(!names.length)return h;
+  const re=new RegExp('@('+names.map(n=>reEsc(esc(n))).join('|')+')(?![A-Za-z0-9_])','gi'),mine=esc(myName()).toLowerCase();
+  return h.replace(re,(m,n)=>`<span class="ms-at ${n.toLowerCase()==mine?'me':''}">${m}</span>`);
+}
+function mentionsMe(text){const n=myName();return !!n&&new RegExp('@'+reEsc(n)+'(?![A-Za-z0-9_])','i').test(text||'')}
+function dayLabel(t){const a=new Date(),y=new Date(Date.now()-864e5);return t.toDateString()==a.toDateString()?'Today':t.toDateString()==y.toDateString()?'Yesterday':t.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'})}
+function chatMsg(m,prev){
+  const own=isOwnMsg(m),t=new Date(m.created_at),pt=prev?new Date(prev.created_at):null;
+  const newDay=!pt||pt.toDateString()!=t.toDateString();
+  const cont=!newDay&&prev.author===m.author&&isOwnMsg(prev)==own&&(t-pt<3e5);
+  const time=t.toLocaleTimeString('en',{hour:'numeric',minute:'2-digit'});
+  const badge=m.author_role&&m.author_role!='student'?`<span class="ms-role">${esc(m.author_role)}</span>`:'';
+  const del=own||isStaff()?`<button class="ms-del" aria-label="Delete message" title="Delete" onclick="chatDel(${m.id})">${ICON_TRASH}</button>`:'';
+  const col=`<div class="ms-col">${cont?'':`<div class="ms-meta">${own?'':`<b>${esc(m.author)}</b>${badge}`}<span>${esc(time)}</span></div>`}<div class="ms-bub" title="${esc(time)}">${msgHTML(m.body)}</div></div>`;
+  return `${newDay?`<div class="ms-day"><span>${esc(dayLabel(t))}</span></div>`:''}<div class="ms-row ${own?'own':''} ${cont?'cont':''} ${!own&&mentionsMe(m.body)?'mention':''}">${own?del+col:`<div class="ms-av ${cont?'sp':''}" aria-hidden="true">${initial(m.author)}</div>${col}${del}`}</div>`;
 }
 function drawChat(stick){
-  const el=document.getElementById('cm');if(!el)return;
+  const el=document.getElementById('ms-list');if(!el)return;
   const near=el.scrollHeight-el.scrollTop-el.clientHeight<90;
-  el.innerHTML=CH.msgs.length?CH.msgs.map(chatMsg).join(''):'<div class="mt" style="padding:28px;text-align:center;margin:auto">No messages yet. Say hi!</div>';
+  el.innerHTML=CH.msgs.length?CH.msgs.map((m,i)=>chatMsg(m,CH.msgs[i-1])).join(''):'<div class="ms-empty"><div class="big">✉</div>No messages yet.<br>Say hi, or type @ to mention someone!</div>';
   if(stick||near)el.scrollTop=el.scrollHeight;
 }
 function addMsg(m){if(!m||(m.course||'')!==CH.room||CH.msgs.some(x=>x.id==m.id))return;CH.msgs.push(m);if(CH.msgs.length>200)CH.msgs.shift();drawChat()}
@@ -385,28 +402,56 @@ function chatUnsub(){if(CH.ch&&live())sb.removeChannel(CH.ch);CH.ch=null}
 function chatSub(){
   chatUnsub();if(!live())return;
   CH.ch=sb.channel('chat-'+Date.now())
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{if(location.hash=='#chat')addMsg(p.new)})
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{if(location.hash!='#chat')return;const m=p.new;if(!isOwnMsg(m)&&mentionsMe(m.body))toast((m.author||'Someone')+' mentioned you');addMsg(m)})
     .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'},p=>{const id=p.old&&p.old.id;if(id!=null){CH.msgs=CH.msgs.filter(m=>m.id!=id);drawChat()}})
     .subscribe();
 }
 addEventListener('hashchange',()=>{if(location.hash!='#chat')chatUnsub()});
+async function chatMembers(){
+  const room=CH.room;let list=[];
+  if(!live())list=[{name:'Head Archivist',role:'admin'},{name:'Quiet Falcon',role:'moderator'},{name:'Night Owl',role:'student'}];
+  else{const r=await sb.rpc('chat_members',{room_course:room||null,sid:HAS_SCH?SCH:null});if(!r.error&&r.data)list=r.data.map(x=>({name:x.member,role:x.member_role}))}
+  if(room!==CH.room)return;CH.members=list;drawChat();
+}
 async function chatLoad(){
-  const room=CH.room;CH.msgs=[];drawChat();
+  const room=CH.room;CH.msgs=[];CH.members=[];drawChat();chatMembers();
   if(!live()){CH.msgs=DEMO_CHAT.filter(m=>(m.course||'')==room).slice(-60);drawChat(true);return}
   let q=sb.from('messages').select('*').order('created_at',{ascending:false}).limit(60);
   q=room?q.eq('course',room):q.is('course',null);if(HAS_SCH)q=q.eq('school_id',SCH);
   const {data,error}=await q;
-  if(room!==CH.room||!document.getElementById('cm'))return;
-  if(error){document.getElementById('cm').innerHTML='<div class="mt" style="padding:28px;text-align:center;margin:auto">'+esc(/relation|schema cache/i.test(error.message)?'Chat is not set up yet. Run courses_chat.sql in Supabase.':error.message)+'</div>';return}
+  if(room!==CH.room||!document.getElementById('ms-list'))return;
+  if(error){document.getElementById('ms-list').innerHTML='<div class="ms-empty">'+esc(/relation|schema cache/i.test(error.message)?'Chat is not set up yet. Run courses_chat.sql in Supabase.':error.message)+'</div>';return}
   CH.msgs=data.reverse();drawChat(true);chatSub();
 }
 function chatRoom(r){CH.room=r||'';V.chat()}
+
+/* @mention suggestions */
+function popTok(inp){const pos=inp.selectionStart==null?inp.value.length:inp.selectionStart,m=/(?:^|\s)@([^@\n]{0,24})$/.exec(inp.value.slice(0,pos));return m?{at:pos-m[1].length-1,q:m[1],pos}:null}
+function popHide(){const p=document.getElementById('ms-pop');if(p)p.hidden=true;CH.pop.items=[]}
+function popUpdate(){
+  const inp=$('#ci'),pop=$('#ms-pop');if(!inp||!pop)return;
+  const tok=popTok(inp);if(!tok)return popHide();
+  const q=tok.q.toLowerCase(),self=myName().toLowerCase(),pool=nameList().filter(n=>n.toLowerCase()!==self).sort((a,b)=>a.localeCompare(b));
+  const hit=pool.filter(n=>n.toLowerCase().startsWith(q)).concat(pool.filter(n=>!n.toLowerCase().startsWith(q)&&n.toLowerCase().includes(q))).slice(0,6);
+  if(!hit.length)return popHide();
+  CH.pop={items:hit,i:Math.min(CH.pop.i,hit.length-1),at:tok.at,pos:tok.pos};
+  pop.innerHTML=hit.map((n,k)=>{const m=CH.members.find(x=>x.name==n),rl=m&&m.role&&m.role!='student'?`<span class="ms-role">${esc(m.role)}</span>`:'';
+    return `<div class="ms-pi ${k==CH.pop.i?'hi':''}" role="option" data-k="${k}"><span class="ms-av">${initial(n)}</span><b>${esc(n)}</b>${rl}</div>`}).join('');
+  pop.hidden=false;
+}
+function popPick(k){
+  const inp=$('#ci'),n=CH.pop.items[k];if(!inp||!n)return;
+  const v=inp.value,rest=v.slice(CH.pop.pos),ins='@'+n+' ';
+  inp.value=v.slice(0,CH.pop.at)+ins+rest.replace(/^ /,'');
+  const c=CH.pop.at+ins.length;inp.setSelectionRange(c,c);inp.focus();popHide();
+}
+
 async function chatSend(e){
-  e.preventDefault();const i=$('#ci'),body=i.value.trim();if(!body||Date.now()-CH.last<700)return;CH.last=Date.now();i.value='';
-  if(!live()){const m={id:nextId(DEMO_CHAT),course:CH.room||null,author:me.code_name||me.name,author_role:me.role,body,created_at:new Date().toISOString()};DEMO_CHAT.push(m);addMsg(m);return}
+  e.preventDefault();const i=$('#ci'),body=i.value.trim();if(!body||Date.now()-CH.last<700)return;CH.last=Date.now();i.value='';popHide();
+  if(!live()){const m={id:nextId(DEMO_CHAT),course:CH.room||null,author:myName(),author_role:me.role,body,created_at:new Date().toISOString()};DEMO_CHAT.push(m);addMsg(m);drawChat(true);return}
   const {data,error}=await sb.from('messages').insert({course:CH.room||null,body,...sc()}).select().single();
   if(error){i.value=body;toast(/relation|schema cache/i.test(error.message)?'Run courses_chat.sql first.':/row-level|polic/i.test(error.message)?'You cannot post in this room.':error.message);return}
-  addMsg(data);
+  addMsg(data);const el=document.getElementById('ms-list');if(el)el.scrollTop=el.scrollHeight;
 }
 async function chatDel(id){
   if(live()){const {data,error}=await sb.from('messages').delete().eq('id',id).select();if(error||!data||!data.length){toast('Could not delete that message.');return}}
@@ -418,12 +463,25 @@ V.chat=()=>{
   const mine=courseOK(me.course)?me.course:'';
   if(CH.room&&!isStaff()&&CH.room!==mine)CH.room='';
   const other=isStaff()?COURSES.filter(c=>c!==mine):[];
-  app.innerHTML=`<div class="ah"><h2 style="margin:0">Chat</h2><span class="mt sm">${CH.room?'Only students of '+esc(CH.room)+' can read this room':'Everyone signed in can read this room'}</span></div>
+  app.innerHTML=`<div class="ah"><h2 style="margin:0">Chat</h2><span class="mt sm">${CH.room?'Only students of '+esc(CH.room)+' can read this room':'Everyone in your school can read this room'}</span></div>
 <div class="chips"><button class="chip ${!CH.room?'on':''}" onclick="chatRoom('')">Global</button>${mine?`<button class="chip ${CH.room==mine?'on':''}" data-c="${esc(mine)}" onclick="chatRoom(this.dataset.c)">${esc(mine)}</button>`:'<a class="chip" href="#settings">Set your course to join your course chat</a>'}
 ${other.length?`<select id="ch_c" aria-label="Other course rooms" style="width:auto;min-width:200px"><option value="">Other course rooms…</option>${other.map(c=>`<option value="${esc(c)}" ${c==CH.room?'selected':''}>${esc(c)}</option>`).join('')}</select>`:''}</div>
-<div class="card chat"><div class="cm" id="cm" aria-live="polite"></div><form class="cf" id="cf" autocomplete="off"><input id="ci" maxlength="500" placeholder="${CH.room?'Message '+esc(CH.room):'Message everyone'}" aria-label="Message"><button class="btn" type="submit">Send</button></form></div>`;
-  $('#cf').onsubmit=chatSend;
+<div class="card ms"><div class="ms-list" id="ms-list" aria-live="polite"></div>
+<form class="ms-form" id="ms-form" autocomplete="off"><div class="ms-pop" id="ms-pop" role="listbox" hidden></div>
+<input id="ci" maxlength="500" placeholder="${CH.room?'Message '+esc(CH.room):'Message everyone'}  (type @ to mention)" aria-label="Message" enterkeyhint="send">
+<button class="ms-send" type="submit" aria-label="Send message"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg></button></form></div>`;
+  const inp=$('#ci');
+  $('#ms-form').onsubmit=chatSend;
+  inp.oninput=popUpdate;inp.onclick=popUpdate;inp.onkeyup=e=>{if(e.key=='ArrowLeft'||e.key=='ArrowRight'||e.key=='Home'||e.key=='End')popUpdate()};
+  inp.onkeydown=e=>{const n=CH.pop.items.length,open=!$('#ms-pop').hidden&&n;
+    if(!open)return;
+    if(e.key=='ArrowDown'){CH.pop.i=(CH.pop.i+1)%n;popUpdate();e.preventDefault()}
+    else if(e.key=='ArrowUp'){CH.pop.i=(CH.pop.i-1+n)%n;popUpdate();e.preventDefault()}
+    else if(e.key=='Enter'||e.key=='Tab'){popPick(CH.pop.i);e.preventDefault()}
+    else if(e.key=='Escape'){popHide();e.stopPropagation()}};
+  inp.onblur=()=>setTimeout(popHide,150);
+  $('#ms-pop').onmousedown=e=>{e.preventDefault();const it=e.target.closest('.ms-pi');if(it)popPick(+it.dataset.k)};
   const sel=$('#ch_c');if(sel)sel.onchange=e=>{if(e.target.value)chatRoom(e.target.value)};
   chatLoad();
-  if(!(window.matchMedia&&window.matchMedia('(max-width:900px)').matches))$('#ci').focus();
+  if(!(window.matchMedia&&window.matchMedia('(max-width:900px)').matches))inp.focus();
 };

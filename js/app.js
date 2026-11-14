@@ -27,7 +27,7 @@ const E=[
 const SUBJ=[...new Set(R.map(r=>r.subject))].sort();
 const $=s=>document.querySelector(s),app=$('#app');
 let user=null,bm=new Set(),hist=[],tick=null,X=null;
-const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)};
+const toast=(m,k)=>{const t=$('#toast');if(!t)return;k=k||(/(^|\b)(error|failed|cannot|can't|could not|couldn't|not allowed|already|taken|invalid|too |slow down|must|need to|enter |choose |still |only )/i.test(String(m))?'err':'ok');t.textContent=m;t.className='on '+k;clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),k=='err'?3800:2400)};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const yr=n=>['1st','2nd','3rd','4th'][n-1]+' Year';
 function setUser(){document.body.classList.toggle('in',!!me);$('#who').innerHTML=me?`<a href="#dash">${esc(me.username?'@'+me.username:user)} <span class="tag" style="margin:0">${me.role}</span></a><a href="#" onclick="confirmLogout();return false">Sign out</a>`:`<a class="btn" href="#login">Sign in</a>`}
@@ -150,6 +150,6 @@ ${sm('★','Bookmarks',bm.size,'saved reviewers')}${sm('✓','Exams taken',ex.le
 <h2>Exam history</h2>${ex.length?ex.map(h=>`<div class="card" style="margin-bottom:8px">${h.title} · ${h.pct}% · ${h.pass?'Passed':'Failed'}</div>`).join(''):'<div class="card mt">No attempts yet.</div>'}`};
 function setX(x){const s=$('#f_exam');s.value=x=='All'?'':x;s.dispatchEvent(new Event('input'));document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.textContent==x))}
 function route(){const[h,id]=(location.hash.slice(1)||'home').split('/');clearInterval(tick);if(!ready){app.innerHTML='<div class="mt" style="padding:60px;text-align:center">Loading…</div>';return}
-if(!me&&h!='login'){next=(V[h]&&h!='home')?location.hash:null;return location.hash='#login'}
+if(!me&&h!='login'&&h!='about'){next=(V[h]&&h!='home')?location.hash:null;return location.hash='#login'}
 if(me&&h!='welcome'&&!obDone()){location.hash='#welcome';return}document.querySelectorAll('nav a,#side a,#tabs a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')=='#'+h));(V[h]||V.home)(id);app.classList.remove('pg');void app.offsetWidth;app.classList.add('pg');window.scrollTo(0,0);document.querySelectorAll('.stat').forEach(el=>{const n=+el.textContent;if(!/^\d+$/.test(el.textContent)||n<2)return;let k=0;const s=setInterval(()=>{k++;el.textContent=Math.round(n*k/20);if(k>=20)clearInterval(s)},30)})}
 addEventListener('hashchange',route);setUser();route();setTimeout(()=>{if(!ready){ready=true;route()}},6000);

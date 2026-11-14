@@ -3,12 +3,13 @@
    Real permissions are enforced by Supabase (setup.sql, storage.sql, content.sql). The UI only hides buttons. */
 let admTab='files',admId=null;
 
-/* ----- links for staff ----- */
+/* ----- navigation link: Admin Panel is shown to admins only ----- */
 function injectAdminLinks(){
   document.querySelectorAll('[data-adm]').forEach(e=>e.remove());
-  if(!isStaff())return;
-  const h=document.querySelector('#side a[href="#home"]');
-  if(h)h.insertAdjacentHTML('afterend','<a data-adm href="#admin">Admin panel</a>');
+  if(!isAdmin())return;
+  const c=document.querySelector('#side a[href="#chat"]');
+  if(c)c.insertAdjacentHTML('afterend',`<a data-adm href="#admin">${icon('admin')}<span>Admin Panel</span></a>`);
+  if(typeof navState=='function')navState();
 }
 const _setUser=window.setUser;
 function injectSchoolSwitch(){
@@ -18,33 +19,66 @@ function injectSchoolSwitch(){
 }
 window.setUser=function(){_setUser();injectAdminLinks();injectSchoolSwitch();mountFab();sideSubs();if(typeof ensureConsent=='function')ensureConsent()};
 
-/* ----- floating + button ----- */
-const FAB_ITEMS=[['▤','Upload reviewer','Add a file for students','openReviewerForm'],['✎','Create mock exam','Write the questions','openExamForm'],['◈','Add subject','New option in the subject list','openSubjectForm'],['◉','Add course','Choose its subjects per year','openCourseForm']];
-const SCHOOL_ITEM=['⌂','Add school','Separate data for a new school','openSchoolForm'];
-function mountFab(){
-  const show=isStaff()&&!/^#(exam\/|login|welcome|chat)/.test(location.hash);
-  const f=document.getElementById('fab'),m=document.getElementById('fabm');
-  if(!show){if(f)f.remove();if(m)m.remove();return}
-  if(f)return;
-  document.body.insertAdjacentHTML('beforeend',`<div id="fabm" hidden>${FAB_ITEMS.concat(isSuper()?[SCHOOL_ITEM]:[]).map(i=>`<button type="button" onclick="fabClose();${i[3]}()"><i>${i[0]}</i><div><b>${i[1]}</b><span>${i[2]}</span></div></button>`).join('')}</div><button type="button" id="fab" aria-label="Add content" aria-haspopup="true" aria-expanded="false" onclick="fabToggle()">+</button>`);
+/* ----- ONE list of quick actions, shared by the + button and the Home page. Each person only gets what they may do. ----- */
+function quickItems(){
+  const q=[];
+  if(isStaff())q.push(
+    {icon:'upload',label:'Upload reviewer',desc:'Add a file for students',fn:'openReviewerForm'},
+    {icon:'exams',label:'Create mock exam',desc:'Write questions and set the timer',fn:'openExamForm'},
+    {icon:'book',label:'Add subject',desc:'A new subject for filters and forms',fn:'openSubjectForm'},
+    {icon:'course',label:'Add course',desc:'Choose its subjects per year',fn:'openCourseForm'});
+  if(isAdmin()&&typeof ANN_OK!='undefined'&&ANN_OK)q.push({icon:'megaphone',label:'Post announcement',desc:'Share news with students',fn:'openAnnForm'});
+  if(isSuper())q.push({icon:'school',label:'Add school',desc:'A separate space for a new school',fn:'openSchoolForm'});
+  return q;
 }
-function fabToggle(){const m=document.getElementById('fabm'),f=document.getElementById('fab');if(!m)return;const o=m.hidden;m.hidden=!o;f.classList.toggle('open',o);f.setAttribute('aria-expanded',String(o))}
-function fabClose(){const m=document.getElementById('fabm'),f=document.getElementById('fab');if(m)m.hidden=true;if(f){f.classList.remove('open');f.setAttribute('aria-expanded','false')}}
+
+/* ----- floating + button (bottom sheet on phones, small menu on desktop) ----- */
+function mountFab(){
+  const show=isStaff()&&quickItems().length&&!/^#(exam\/|login|welcome|chat)/.test(location.hash);
+  const f=document.getElementById('fab'),m=document.getElementById('fabm'),s=document.getElementById('fabs');
+  if(!show){[f,m,s].forEach(e=>e&&e.remove());document.body.classList.remove('has-fab');return}
+  document.body.classList.add('has-fab');
+  if(f)return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="fabs" hidden onclick="fabClose()"></div><div id="fabm" role="menu" aria-label="Quick actions" hidden></div><button type="button" id="fab" aria-label="Quick actions" aria-haspopup="menu" aria-expanded="false" aria-controls="fabm" onclick="fabToggle()">${icon('plus',26)}</button>`);
+  document.getElementById('fabm').addEventListener('keydown',e=>{
+    const b=[...e.currentTarget.querySelectorAll('button')],i=b.indexOf(document.activeElement);
+    if(e.key=='ArrowDown'){b[(i+1)%b.length].focus();e.preventDefault()}else if(e.key=='ArrowUp'){b[(i-1+b.length)%b.length].focus();e.preventDefault()}
+  });
+}
+const fabMenu=()=>'<div class="fm-h">Create</div>'+quickItems().map(i=>`<button type="button" role="menuitem" onclick="fabClose();${i.fn}()"><i>${icon(i.icon,20)}</i><div><b>${esc(i.label)}</b><span>${esc(i.desc)}</span></div></button>`).join('');
+function fabToggle(){
+  const m=document.getElementById('fabm'),f=document.getElementById('fab'),s=document.getElementById('fabs');if(!m)return;
+  const open=m.hidden;if(open)m.innerHTML=fabMenu();
+  m.hidden=!open;s.hidden=!open;f.classList.toggle('open',open);f.setAttribute('aria-expanded',String(open));document.body.classList.toggle('fab-open',open);
+  if(open){const b=m.querySelector('button');if(b)b.focus()}else f.focus();
+}
+function fabClose(){
+  const m=document.getElementById('fabm'),f=document.getElementById('fab'),s=document.getElementById('fabs');
+  if(m)m.hidden=true;if(s)s.hidden=true;if(f){f.classList.remove('open');f.setAttribute('aria-expanded','false')}document.body.classList.remove('fab-open');
+}
 document.addEventListener('mousedown',e=>{if(!e.target.closest('#fab,#fabm'))fabClose()});
-addEventListener('keydown',e=>{if(e.key=='Escape')fabClose()});
+addEventListener('keydown',e=>{if(e.key=='Escape'&&document.body.classList.contains('fab-open')){fabClose();const f=document.getElementById('fab');if(f)f.focus()}});
 addEventListener('hashchange',()=>{fabClose();mountFab()});
 mountFab();
 
-/* ----- modal ----- */
-function closeModal(){const d=document.getElementById('fm');if(d)d.remove();removeEventListener('keydown',modalKey)}
-function modalKey(e){if(e.key=='Escape'&&document.getElementById('fm'))closeModal()}
-function modal(html){
-  closeModal();
-  const d=document.createElement('div');d.className='mdl form';d.id='fm';
+/* ----- modal: scrollable, bottom sheet on phones, warns before throwing away unsaved changes ----- */
+const MD={dirty:false,back:null};
+function closeModal(force){
+  const d=document.getElementById('fm');if(!d)return;
+  if(force!==true&&MD.dirty){ask('Discard changes?','You have unsaved changes. If you close now they will be lost.','Discard',()=>closeModal(true));return}
+  d.remove();MD.dirty=false;document.body.classList.remove('md-open');removeEventListener('keydown',modalKey);
+  if(MD.back&&MD.back.isConnected&&MD.back.focus)try{MD.back.focus()}catch(e){}MD.back=null;
+}
+function modalKey(e){if(e.key=='Escape'&&document.getElementById('fm')&&!document.querySelector('.mdl:not(#fm)'))closeModal()}
+function modal(html,opts){
+  closeModal(true);MD.dirty=false;MD.back=document.activeElement;
+  const d=document.createElement('div');d.className='mdl form'+(opts&&opts.sheet?' sheet':'');d.id='fm';
   d.innerHTML=`<div class="mc" role="dialog" aria-modal="true">${html}</div>`;
-  document.body.appendChild(d);
+  document.body.appendChild(d);document.body.classList.add('md-open');
   d.addEventListener('mousedown',e=>{if(e.target===d)closeModal()});
-  d.querySelectorAll('[data-n]').forEach(b=>b.onclick=closeModal);
+  d.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('input,textarea')&&!e.target.closest('.sdd'))MD.dirty=true});
+  d.addEventListener('change',()=>{MD.dirty=true});
+  d.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>closeModal());
   addEventListener('keydown',modalKey);
   return d;
 }
@@ -56,12 +90,12 @@ function openSubjectForm(){
 <label class="fl sm mt" for="sj_n">Subject name</label><input id="sj_n" maxlength="80" placeholder="e.g. Operating Systems" autocomplete="off"><div class="err" id="e_sj_n"></div>
 <div class="row" style="justify-content:flex-end"><button class="btn g" data-n>Cancel</button><button class="btn" id="sj_ok">Add subject</button></div>`);
   const go=async()=>{const v=$('#sj_n').value;if(v.trim().length<2)return fe('e_sj_n','Enter a subject name (at least 2 characters).');
-    $('#sj_ok').disabled=true;if(await addSubject(v)){closeModal();toast('Subject added');route()}else $('#sj_ok').disabled=false};
+    $('#sj_ok').disabled=true;if(await addSubject(v)){closeModal(true);toast('Subject added');route()}else $('#sj_ok').disabled=false};
   $('#sj_ok').onclick=go;$('#sj_n').onkeydown=e=>{if(e.key=='Enter')go()};$('#sj_n').focus();
 }
 
 /* ----- upload / edit reviewer ----- */
-function openReviewerForm(id){
+function openReviewerForm(id,defSub){
   const r=id!=null?R.find(x=>x.id==id):null;
   if(!r&&!SUBJ.length){toast('Add a subject first.');return openSubjectForm()}
   modal(`<h3>${r?'Edit reviewer':'Upload reviewer'}</h3><p class="mt sm">${r?'Change the details, or choose a new file to replace the current one.':'The file is stored privately. Only signed-in students of your school can download it.'}</p>
@@ -74,7 +108,7 @@ function openReviewerForm(id){
 <label class="fl sm mt" for="rv_p">Topics (separate with commas)</label><input id="rv_p" placeholder="Joins, Normal forms, ERD" autocomplete="off" value="${r?esc(r.topics.join(', ')):''}">
 <label class="fl sm mt" for="rv_f">${r?'Replace file (optional)':'File'} (any file type, up to ${MAXMB} MB)</label><input type="file" id="rv_f"><div class="err" id="e_rv_f"></div>
 <div class="row" style="justify-content:flex-end"><button class="btn g" data-n>Cancel</button><button class="btn" id="rv_ok">${r?'Save changes':'Upload'}</button></div>`);
-  sddInit('sdd_rv',{options:()=>SUBJ,value:r?r.subject:'',onChange:()=>fe('e_rv_s','')});
+  sddInit('sdd_rv',{options:()=>SUBJ,value:r?r.subject:(defSub||''),onChange:()=>fe('e_rv_s','')});
   $('#rv_ok').onclick=async()=>{
     const t=$('#rv_t').value.trim(),s=sddGet('sdd_rv'),f=$('#rv_f').files[0],ext=f?fileExt(f):'';
     const ferr=!f?(r?'':'Choose a file to upload.'):!extOk(ext)?'The file needs an extension, like .pdf or .xlsx.':f.size>MAXMB*1048576?'File is over '+MAXMB+' MB.':'';
@@ -83,7 +117,7 @@ function openReviewerForm(id){
     const o={title:t,subject:s,exam:$('#rv_x').value,year:+$('#rv_y').value,sem:+$('#rv_m').value,section:$('#rv_c').value.trim().toUpperCase(),topics:$('#rv_p').value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,12),by:byName()};
     const b=$('#rv_ok');b.disabled=true;b.textContent=r?'Saving…':'Uploading…';
     const ok=r?await updateReviewer(r.id,o,f):await addReviewer(o,f);
-    if(ok){closeModal();toast(r?'Reviewer updated':'Reviewer added');route()}else{b.disabled=false;b.textContent=r?'Save changes':'Upload'}
+    if(ok){closeModal(true);toast(r?'Reviewer updated':'Reviewer added');route()}else{b.disabled=false;b.textContent=r?'Save changes':'Upload'}
   };
   $('#rv_t').focus();
 }
@@ -148,7 +182,7 @@ function openExamForm(id){
     if(!(mins>=1&&mins<=300)||!(pass>=1&&pass<=100))return fe('e_ex_q','Minutes must be 1 to 300 and passing 1 to 100.');
     const b=$('#ex_ok');b.disabled=true;b.textContent='Saving…';
     const o={title:t,subject:s,diff:$('#ex_d').value,mins,pass,q:out};
-    if(x?await updateExam(x.id,o):await addExam(o)){closeModal();toast(x?'Exam updated':'Exam created');route()}else{b.disabled=false;b.textContent=x?'Save changes':'Save exam'}
+    if(x?await updateExam(x.id,o):await addExam(o)){closeModal(true);toast(x?'Exam updated':'Exam created');route()}else{b.disabled=false;b.textContent=x?'Save changes':'Save exam'}
   };
 }
 
@@ -168,7 +202,7 @@ function openCourseForm(){
     fe('e_cr_n',n.length<2?'Enter a course name (at least 2 characters).':'');fe('e_cr_s',err);
     if(n.length<2||err)return;
     const b=$('#cr_ok');b.disabled=true;
-    if(await addCourse(n,subs)){closeModal();toast('Course added');route()}else b.disabled=false;
+    if(await addCourse(n,subs)){closeModal(true);toast('Course added');route()}else b.disabled=false;
   };
 }
 
@@ -184,14 +218,17 @@ function admDelSubject(name){
 
 /* ----- Admin panel ----- */
 V.admin=()=>{
-  if(!isStaff()){toast('Staff only');return location.hash='#dash'}
-  if(!isAdmin()&&admTab=='users')admTab='files';
-  const tab=(k,l)=>`<button class="chip ${admTab==k?'on':''}" onclick="admGo('${k}')">${l}</button>`;
-  app.innerHTML=`<div class="ah"><h2 style="margin:0">Admin panel</h2><div class="row" style="margin:0"><button class="btn g" onclick="openSubjectForm()">Add subject</button><button class="btn g" onclick="openCourseForm()">Add course</button><button class="btn g" onclick="openExamForm()">Create exam</button><button class="btn" onclick="openReviewerForm()">Upload reviewer</button></div></div>
-<div class="row" style="margin:14px 0 0;align-items:center"><span class="mt sm">School</span>${isSuper()&&SCHOOLS.length?schoolSelect('sch_sw2'):`<span class="tag">${esc(schoolName()||'Not set')}</span>`}</div>
-${live()?'':'<div class="banner" style="margin-top:14px">Demo mode: Supabase is not connected, so changes live only in this browser tab.</div>'}
-<div class="chips" style="margin-top:16px">${tab('files','Files')}${tab('subjects','Subjects')}${tab('courses','Courses')}${isSuper()?tab('schools','Schools'):''}${isAdmin()?tab('users','Users'):''}</div><input type="file" id="adm_f" hidden onchange="admUpload(this)"><div id="adm"></div>`;
-  admTab=='users'&&isAdmin()?admUsers():admTab=='subjects'?admSubjects():admTab=='courses'?admCourses():admTab=='schools'&&isSuper()?admSchools():admFiles();
+  if(!isStaff()){toast('Only staff can open the Admin Panel.','err');return location.hash='#home'}
+  if(!isAdmin()&&['users','announcements'].includes(admTab))admTab='files';
+  if(!isSuper()&&admTab=='schools')admTab='files';
+  const tabs=[['files','Files'],['subjects','Subjects'],['courses','Courses']];
+  if(isAdmin())tabs.push(['announcements','Announcements'],['users','Users']);
+  if(isSuper())tabs.push(['schools','Schools']);
+  app.innerHTML=pageHead('Admin Panel','Manage files, subjects, courses, announcements and people. Use the + button to create something new.',[['Admin Panel']])+
+`<div class="ctx-row">${icon('school',16)}<span class="mt sm">School</span>${isSuper()&&SCHOOLS.length?schoolSelect('sch_sw2'):`<span class="tag">${esc(schoolName()||'Not set')}</span>`}</div>
+${live()?'':'<div class="banner" style="margin-top:12px">Local preview: Supabase is not connected, so changes live only in this browser tab.</div>'}
+<div class="tabs-scroll" role="tablist" aria-label="Admin sections">${tabs.map(t=>`<button type="button" role="tab" aria-selected="${admTab==t[0]}" class="chip ${admTab==t[0]?'on':''}" onclick="admGo('${t[0]}')">${t[1]}</button>`).join('')}</div><input type="file" id="adm_f" hidden onchange="admUpload(this)"><div id="adm"></div>`;
+  ({users:()=>admUsers(),subjects:()=>admSubjects(),courses:()=>admCourses(),schools:()=>admSchools(),announcements:()=>admAnnouncements()}[admTab]||(()=>admFiles()))();
 };
 function admGo(t){admTab=t;V.admin()}
 
@@ -273,7 +310,7 @@ function openSchoolForm(){
 <div class="row" style="justify-content:flex-end"><button class="btn g" data-n>Cancel</button><button class="btn" id="sc_ok">Add school</button></div>`);
   const go=async()=>{const v=$('#sc_n').value;if(v.trim().length<2)return fe('e_sc_n','Enter a school name (at least 2 characters).');
     $('#sc_ok').disabled=true;const id=await addSchool(v);
-    if(id){closeModal();toast('School added. You are now managing it.');await switchSchool(id)}else $('#sc_ok').disabled=false};
+    if(id){closeModal(true);toast('School added. You are now managing it.');await switchSchool(id)}else $('#sc_ok').disabled=false};
   $('#sc_ok').onclick=go;$('#sc_n').onkeydown=e=>{if(e.key=='Enter')go()};$('#sc_n').focus();
 }
 function admSchools(){

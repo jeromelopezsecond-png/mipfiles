@@ -4,9 +4,9 @@
 const SITE={
   name:'MIPMIP Files',
   tagline:'Mastery in Progress',
-  owner:'Akinomori',                      // shown in the footer and the policy
-  dpo:'Akinomori',                        // Data Protection Officer (person who answers privacy requests)
-  email:'jeromelopezsecond@gmail.com',            // <-- CHANGE: where people send privacy requests and questions
+  owner:'Jerome Adler',                      // shown in the footer and the policy
+  dpo:'Jerome Adler',                        // Data Protection Officer (person who answers privacy requests)
+  email:'your-email@example.com',            // <-- CHANGE: where people send privacy requests and questions
   address:'Philippines',                     // <-- CHANGE: your address or city, if you want to show it
   hosting:'Cloudflare',                      // where the website is hosted
   backend:'Supabase',                        // where accounts, files and chat are stored
@@ -26,7 +26,7 @@ function legalHTML(kind){
 <h4>Every school has its own space</h4>
 <p>Each school has its own separate subjects, courses, reviewers, exams, chat and students. One school cannot see another school's data. You can use a code name so your identity stays private in chat.</p>
 <h4>Who makes it</h4>
-<p>${e(S.name)}™ is made by <b>${e(S.owner)}</b> and kept running by students, teachers and moderators who share reviewers. Want to contribute materials? Ask the admin or a moderator of your school.</p>
+<p>${e(S.name)}™ is made by <b>${e(S.owner)}</b>. Reviewers are uploaded by the admins and moderators of each school. Want to contribute materials? Ask the admin or a moderator of your school.</p>
 <h4>Contact</h4>
 <p>Questions, feedback or a problem? Email <b>${e(S.email)}</b>.</p>`;
 

@@ -26,7 +26,7 @@ d.onclick=e=>{if(e.target==d)d.remove()};draw();pq.focus()}
 addEventListener('keydown',e=>{const t=document.activeElement.tagName,typing=/INPUT|TEXTAREA|SELECT/.test(t);
 if(((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()=='k')||(e.key=='/'&&!typing)){e.preventDefault();palette();return}
 if(!X||typing||e.metaKey||e.ctrlKey||document.querySelector('.mdl'))return;const q=X.qs[X.i];
-if(/^[1-9]$/.test(e.key)&&q.c){const c=q.c[+e.key-1];if(c){X.a[X.i]=c;xr()}}
+if(/^[1-9]$/.test(e.key)&&q.c){const c=q.c[+e.key-1];if(c){typeof pickAns=='function'?pickAns(c):(X.a[X.i]=c,xr())}}
 else if(e.key=='ArrowRight'){X.i=Math.min(X.qs.length-1,X.i+1);xr()}
 else if(e.key=='ArrowLeft'){X.i=Math.max(0,X.i-1);xr()}
 else if(e.key.toLowerCase()=='f'){X.f.has(X.i)?X.f.delete(X.i):X.f.add(X.i);xr()}});

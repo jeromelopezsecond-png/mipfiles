@@ -7,7 +7,7 @@ let admTab='files',admId=null;
 function injectAdminLinks(){
   document.querySelectorAll('[data-adm]').forEach(e=>e.remove());
   if(!isAdmin())return;
-  const c=document.querySelector('#side a[href="#chat"]');
+  const c=document.querySelector('#side a[href="#people"]');
   if(c)c.insertAdjacentHTML('afterend',`<a data-adm href="#admin">${icon('admin')}<span>Admin Panel</span></a>`);
   if(typeof navState=='function')navState();
 }

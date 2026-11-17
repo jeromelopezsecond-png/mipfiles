@@ -45,7 +45,7 @@ function rowHTML(m,prev){
   const status=st=='sending'?`<div class="cp-st">${icon('clock',12)} Sending…</div>`:st=='failed'?`<div class="cp-st bad" role="alert">${icon('alert',12)} ${esc(m.err||'Not sent')} · <button type="button" onclick="chatRetry('${m.cid}')">Retry</button> · <button type="button" onclick="chatDiscard('${m.cid}')">Remove</button></div>`:'';
   const col=`<div class="cp-col">${cont?'':`<div class="ms-meta">${own?'':`<b>${esc(m.author)}</b>${badge}`}<time datetime="${esc(m.created_at)}" title="${esc(full)}">${esc(time)}</time></div>`}${quote}<div class="cp-bub" title="${esc(full)}">${msgHTML(m.body)}</div>${status}</div>`;
   const cls=`cp-row ${own?'own':''} ${cont?'cont':''} ${!own&&mentionsMe(m.body)?'mention':''} ${st}`;
-  return `<div class="${cls}" id="m-${mkey(m)}" data-k="${mkey(m)}">${own?acts+col:`<div class="ms-av ${cont?'sp':''}" aria-hidden="true">${initial(m.author)}</div>${col}${acts}`}</div>`;
+  return `<div class="${cls}" id="m-${mkey(m)}" data-k="${mkey(m)}">${own?acts+col:`<div class="ms-av ${cont?'sp':''}" aria-hidden="true">${initial(m.author)}${typeof presDot=='function'&&m.user_id?presDot(m.user_id):''}</div>${col}${acts}`}</div>`;
 }
 function dayHTML(m,prev){const t=new Date(m.created_at);return !prev||new Date(prev.created_at).toDateString()!=t.toDateString()?`<div class="ms-day"><span>${esc(dayLabel(t))}</span></div>`:''}
 
@@ -348,7 +348,7 @@ V.chat=()=>{
   const other=isStaff()?COURSES.filter(c=>c!==mine):[];
   const desc=CH.room?`Only students of ${CH.room} can read this room.`:`Open to everyone at ${schoolName()||'your school'}.`;
   app.innerHTML=`<section class="cp" id="cp" aria-label="Chat">
-<header class="cp-head"><div class="cp-title"><h1>Chat</h1><p class="cp-desc tr" id="cp-desc">${esc(desc)}</p></div>
+<header class="cp-head"><div class="cp-title"><h1>Chat</h1><p class="cp-desc tr" id="cp-desc">${esc(desc)}</p><span class="cp-on" id="cp-on" hidden></span></div>
 <div class="cp-rooms" role="tablist" aria-label="Chat rooms">
 <button type="button" role="tab" aria-selected="${!CH.room}" class="cp-tab ${!CH.room?'on':''}" onclick="chatRoom('')">${icon('school',16)}<span>Global</span><i class="nb" data-ub="" hidden></i></button>
 ${mine?`<button type="button" role="tab" aria-selected="${CH.room==mine}" class="cp-tab ${CH.room==mine?'on':''}" data-c="${esc(mine)}" onclick="chatRoom(this.dataset.c)" title="${esc(mine)}">${icon('course',16)}<span class="tr">${esc(mine)}</span><i class="nb" data-ub="${esc(mine)}" hidden></i></button>`:`<a class="cp-tab" href="#settings">${icon('course',16)}<span>Set your course</span></a>`}

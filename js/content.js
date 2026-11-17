@@ -226,8 +226,11 @@ function sddInit(id,cfg){
     hi=Math.min(hi,Math.max(0,items.length-1));
     l.innerHTML=items.length?items.map((it,k)=>`<div class="sdd-i ${k==hi?'hi':''} ${it[0]==val?'sel':''}" role="option" data-k="${k}">${esc(it[1])}</div>`).join(''):'<div class="sdd-e">No subject found</div>'};
   const hl=()=>{const h=l.querySelector('.hi');if(h&&h.scrollIntoView)h.scrollIntoView({block:'nearest'})};
-  const close=()=>{p.hidden=true;b.setAttribute('aria-expanded','false');el.classList.remove('open')};
-  const open=()=>{closeSdd();p.hidden=false;b.setAttribute('aria-expanded','true');el.classList.add('open');s.value='';hi=0;draw();s.focus()};
+  const close=()=>{p.hidden=true;b.setAttribute('aria-expanded','false');el.classList.remove('open','up')};
+  const open=()=>{closeSdd();p.hidden=false;b.setAttribute('aria-expanded','true');el.classList.add('open');s.value='';hi=0;draw();
+    if(window.innerWidth>900){const r=p.getBoundingClientRect(),t=el.getBoundingClientRect().top;if(r.bottom>window.innerHeight-8&&t>r.height+16)el.classList.add('up')}
+    s.focus()};
+  el.addEventListener('mousedown',e=>{if(e.target===el)close()});
   const pick=k=>{const it=items[k];if(!it)return;val=it[0];label();close();cfg.onChange&&cfg.onChange(val);el.dispatchEvent(new Event('change',{bubbles:true}))};
   b.onclick=()=>p.hidden?open():close();
   b.onkeydown=e=>{if(e.key=='ArrowDown'&&p.hidden){e.preventDefault();open()}};

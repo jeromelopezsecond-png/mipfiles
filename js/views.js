@@ -157,7 +157,7 @@ V.home=()=>{
 <h1>${gr}, <span>${esc(first)}</span></h1>
 <div class="rc-tags">${own?`<span class="tag">${esc(own)}</span><span class="tag">${yr(yv)}</span>`:''}${me.section?`<span class="tag">${esc(me.section)}</span>`:''}</div>
 <div class="row">${own?`<a class="btn" href="#course">${icon('course',16)} Open my course</a>`:`<a class="btn" href="#settings">Choose your course</a>`}<a class="btn g" href="#archive">${icon('archive',16)} Browse archive</a></div></div></section>
-<div class="sc-grid" role="navigation" aria-label="Shortcuts">${tile('#archive','archive','Archive')}${tile('#exams','exams','Mock Exams')}${tile('#chat','chat','Chat',un)}${tile('#announcements','megaphone','Announcements',an)}${tile('#dash','dash','Dashboard')}</div>
+<div class="sc-grid" role="navigation" aria-label="Shortcuts">${tile('#archive','archive','Archive')}${tile('#exams','exams','Mock Exams')}${tile('#chat','chat','Chat',un)}${tile('#forum','forum','Forum')}${tile('#people','users','People',(typeof FR!='undefined'?FR.incoming:0))}${tile('#announcements','megaphone','Announcements',an)}${tile('#dash','dash','Dashboard')}</div>
 ${admin}
 <div class="home-grid"><div class="home-main">
 <section class="card" id="ann-home" aria-label="Announcements">${annHomeHTML()}</section>

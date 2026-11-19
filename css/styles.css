@@ -701,3 +701,4 @@ html[data-theme="light"] #toast{background:#2a2119;color:#fff8ee}
   .sdd.open .sdd-p{position:fixed;left:0;right:0;top:auto;bottom:0;z-index:90;max-height:72dvh;border-radius:22px 22px 0 0;border-width:1px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;animation:sheetup .2s ease both}
   .sdd.open .sdd-l{max-height:none;flex:1;overflow-y:auto}.sdd-i{min-height:48px;display:flex;align-items:center}
 }
+.lock-chip{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:14px;background:var(--bg);border:1px solid var(--bd);color:var(--tx)}.lock-chip .ic{color:var(--ac)}

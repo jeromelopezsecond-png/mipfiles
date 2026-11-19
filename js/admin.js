@@ -294,9 +294,14 @@ function admCourses(){
   const yrSel=i=>`<select id="ay${i}" class="cry" aria-label="Year level"><option value="0">All years</option>${[1,2,3,4].map(y=>`<option value="${y}">${yr(y)}</option>`).join('')}</select>`;
   $('#adm').innerHTML=`<div class="row" style="margin-top:0"><button class="btn" onclick="openCourseForm()">Add course</button></div><div class="grid">${COURSES.length?COURSES.map((c,i)=>{
     const rows=CS.filter(x=>x.course==c).sort((a,b)=>a.year-b.year||a.subject.localeCompare(b.subject));
+    const secs=SECTIONS.filter(s=>s.course==c).sort((a,b)=>a.year-b.year||a.name.localeCompare(b.name));
     return `<div class="card"><div class="ct"><h3>${esc(c)}</h3>${isAdmin()?`<button class="bm del" data-c="${esc(c)}" aria-label="Delete course" title="Delete course" onclick="admDelCourse(this.dataset.c)">${ICON_TRASH}</button>`:''}</div>
 <div class="mt sm">${rows.length} subject${rows.length==1?'':'s'}</div>
 <div class="chips" style="margin:10px 0">${rows.map(x=>`<span class="tag tg">${esc(x.subject)} · ${x.year?yr(x.year):'All years'}<button class="tx" aria-label="Remove ${esc(x.subject)}" data-c="${esc(c)}" data-s="${esc(x.subject)}" onclick="admRmCS(this.dataset.c,this.dataset.s)">×</button></span>`).join('')||'<span class="mt sm">No subjects yet</span>'}</div>
+<div class="mt sm" style="margin:10px 0 4px"><b>Class sections</b> (students pick one in Settings)</div>
+<div class="chips" style="margin:0 0 8px">${secs.map(s=>`<span class="tag tg">${esc(s.name)}${s.year?' · '+yr(s.year):''}<button class="tx" aria-label="Remove section ${esc(s.name)}" data-c="${esc(c)}" data-n="${esc(s.name)}" onclick="admRmSec(this.dataset.c,this.dataset.n)">×</button></span>`).join('')||'<span class="mt sm">None yet. Students can type their own.</span>'}</div>
+<div class="crr"><input id="sn${i}" placeholder="e.g. BSIS-I102" maxlength="20" aria-label="New section name" autocomplete="off"><select id="sy${i}" class="cry" aria-label="Year level"><option value="0">Any year</option>${[1,2,3,4].map(y=>`<option value="${y}">${yr(y)}</option>`).join('')}</select><button class="btn g" data-c="${esc(c)}" onclick="admAddSec(this.dataset.c,${i})">Add section</button></div>
+<div class="mt sm" style="margin:12px 0 4px"><b>Subjects</b></div>
 <div class="crr">${sddHTML('sdd_ac'+i,'Add a subject')}${yrSel(i)}<button class="btn g" data-c="${esc(c)}" onclick="admAddCS(this.dataset.c,${i})">Add</button></div></div>`}).join(''):'<div class="card mt">No courses yet. Use Add course.</div>'}</div>`;
   COURSES.forEach((c,i)=>sddInit('sdd_ac'+i,{options:()=>SUBJ,value:''}));
 }
@@ -320,3 +325,6 @@ function admDelSchool(id){
   const s=SCHOOLS.find(x=>x.id==id);if(!s)return;
   ask('Delete school?','"'+esc(s.name)+'" and ALL of its subjects, courses, reviewers, exams and chat will be permanently deleted. A school that still has students cannot be deleted.','Delete',async()=>{if(await delSchool(id)){toast('School deleted');route()}});
 }
+
+async function admAddSec(course,i){const n=document.getElementById('sn'+i);if(await addSection(course,n.value,+document.getElementById('sy'+i).value)){toast('Section added to '+course);admCourses()}}
+async function admRmSec(course,name){if(await delSection(course,name)){toast('Section removed');admCourses()}}

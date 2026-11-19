@@ -16,16 +16,16 @@ window.goSub=s=>{location.hash=subLink(s)};
 
 function filterBar(o){
   return `<section class="card fbar" aria-label="Filters"><label class="f-search">${icon('search',18)}<input id="${o.id}q" type="search" placeholder="${esc(o.ph)}" value="${esc(o.st.q)}" aria-label="${esc(o.ph)}" autocomplete="off"></label>
-<div class="f-grid"><div class="f-f"><label for="${o.id}c">Course</label><select id="${o.id}c"><option value="">All courses</option>${COURSES.map(c=>`<option value="${esc(c)}" ${c==o.st.course?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+<div class="f-grid">${o.lock?`<div class="f-f"><label>Your course</label><div class="lock-chip">${icon('course',16)}<span class="tr">${esc(o.lock)}</span></div></div>`:`<div class="f-f"><label for="${o.id}c">Course</label><select id="${o.id}c"><option value="">All courses</option>${COURSES.map(c=>`<option value="${esc(c)}" ${c==o.st.course?'selected':''}>${esc(c)}</option>`).join('')}</select></div>`}
 <div class="f-f"><label>Subject</label>${sddHTML(o.id+'s','All subjects')}</div>
 <div class="f-f"><label for="${o.id}y">Year level</label><select id="${o.id}y"><option value="">All years</option>${[1,2,3,4].map(n=>`<option value="${n}" ${n==o.st.yr?'selected':''}>${yr(n)}</option>`).join('')}</select></div>${o.extra||''}</div>
 <div class="f-foot"><span class="f-count" id="${o.id}n" role="status" aria-live="polite"></span><button type="button" class="btn g sm" id="${o.id}x">Clear filters</button></div></section>`;
 }
 /* hooks the bar up; st is the state object, change() re-runs the list, reset() clears everything */
 function wireFilters(o,change,reset){
-  const st=o.st,q=document.getElementById(o.id+'q'),c=document.getElementById(o.id+'c'),y=document.getElementById(o.id+'y');
+  const st=o.st,q=document.getElementById(o.id+'q'),c=document.getElementById(o.id+'c')||{},y=document.getElementById(o.id+'y');
   q.oninput=()=>{st.q=q.value;change()};
-  c.onchange=()=>{st.course=c.value;if(st.sub&&!subjectsFor(st.course).includes(st.sub)){st.sub='';document.getElementById(o.id+'s')._sdd.set('')}change()};
+  if(document.getElementById(o.id+'c'))c.onchange=()=>{st.course=c.value;if(st.sub&&!subjectsFor(st.course).includes(st.sub)){st.sub='';document.getElementById(o.id+'s')._sdd.set('')}change()};
   y.onchange=()=>{st.yr=y.value;change()};
   sddInit(o.id+'s',{options:()=>subjectsFor(st.course),value:st.sub,all:'All subjects',onChange:v=>{st.sub=v;change()}});
   document.getElementById(o.id+'x').onclick=reset;
@@ -43,7 +43,7 @@ window.rc=function(r){
 <div class="row" style="margin:10px 0 0"><a class="btn g" href="${href}">${icon('eye',16)} Preview</a><button class="btn" onclick="dl(${r.id})">${icon('download',16)} Download</button></div></article>`;
 };
 const miniCard=r=>`<a class="card mini" href="#r/${r.id}">${fileBadge(r.type)}<b class="tr2">${esc(r.title)}</b><span class="tr">${esc(r.subject)}</span><small>${esc(fmtDate(r.date))}</small></a>`;
-const examCard=e=>{const cs=coursesOf(e.subject);
+const examCard=e=>{const cs=myCourseOnly()?[me.course]:coursesOf(e.subject);
   return `<article class="card ecard" data-href="#exam/${e.id}"><div class="ct"><h3><a href="#exam/${e.id}">${esc(e.title)}</a></h3><div class="ca">${isStaff()?`<button class="bm ed" aria-label="Edit exam" title="Edit exam" onclick="openExamForm(${e.id})">${ICON_EDIT}</button>`:''}${isAdmin()?`<button class="bm del" aria-label="Delete exam" title="Delete exam" onclick="admDelExam(${e.id})">${ICON_TRASH}</button>`:''}</div></div>
 <a class="rc-link" href="${subLink(e.subject)}">${icon('book',14)} ${esc(e.subject)}</a>
 <div class="rc-tags"><span class="tag">${esc(e.diff)}</span>${cs.slice(0,2).map(c=>`<span class="tag">${esc(c)}</span>`).join('')}${cs.length>2?`<span class="tag">+${cs.length-2}</span>`:''}</div>
@@ -51,25 +51,29 @@ const examCard=e=>{const cs=coursesOf(e.subject);
 <div class="row" style="margin:10px 0 0"><a class="btn" href="#exam/${e.id}">Start exam</a></div></article>`};
 
 /* ---------- Mock Exams ---------- */
+/* students only ever see the mock exams of their own course */
+const myCourseOnly=()=>!!me&&me.role=='student'&&courseOK(me.course);
+const examBase=()=>myCourseOnly()?E.filter(e=>CS.some(x=>x.course==me.course&&x.subject==e.subject)):E;
 function examMatches(){
   const q=XF.q.trim().toLowerCase();
-  return E.filter(e=>(!XF.sub||e.subject==XF.sub)&&(!XF.course||CS.some(x=>x.course==XF.course&&x.subject==e.subject))&&(!XF.yr||yearOK(e.subject,XF.course,+XF.yr))&&(!q||(e.title+' '+e.subject).toLowerCase().includes(q)));
+  return examBase().filter(e=>(!XF.sub||e.subject==XF.sub)&&(!XF.course||CS.some(x=>x.course==XF.course&&x.subject==e.subject))&&(!XF.yr||yearOK(e.subject,XF.course,+XF.yr))&&(!q||(e.title+' '+e.subject).toLowerCase().includes(q)));
 }
 const xActive=()=>!!(XF.q||XF.course||XF.sub||XF.yr);
 function examRun(){
   const L=examMatches(),n=document.getElementById('xn'),res=document.getElementById('xres');if(!n||!res)return;
   ssSet('mip_xf',XF);
-  n.textContent=xActive()?`${L.length} of ${E.length} mock exam${E.length==1?'':'s'}`:`${E.length} mock exam${E.length==1?'':'s'}`;
+  n.textContent=xActive()?`${L.length} of ${examBase().length} mock exam${examBase().length==1?'':'s'}`:`${examBase().length} mock exam${examBase().length==1?'':'s'}`;
   document.getElementById('xx').disabled=!xActive();
-  res.innerHTML=L.length?L.map(examCard).join(''):emptyState('exams',E.length?'No mock exams match your filters':'No mock exams yet',E.length?'Try another course, subject or year level, or clear the filters.':'Mock exams will appear here once they are created.',E.length?'<button class="btn" onclick="examClear()">Clear filters</button>':(isStaff()?'<button class="btn" onclick="openExamForm()">Create mock exam</button>':''));
+  res.innerHTML=L.length?L.map(examCard).join(''):emptyState('exams',examBase().length?'No mock exams match your filters':'No mock exams yet',examBase().length?'Try another subject or year level, or clear the filters.':(myCourseOnly()?'There are no mock exams for your course yet.':'Mock exams will appear here once they are created.'),examBase().length?'<button class="btn" onclick="examClear()">Clear filters</button>':(isStaff()?'<button class="btn" onclick="openExamForm()">Create mock exam</button>':''));
 }
 function examClear(){XF={q:'',course:'',sub:'',yr:''};ssSet('mip_xf',XF);V.exams()}
 V.exams=()=>{
   if(!me)return location.hash='#login';
+  if(myCourseOnly())XF.course=me.course;
   if(XF.course&&!COURSES.includes(XF.course))XF.course='';
   if(XF.sub&&!subjectsFor(XF.course).includes(XF.sub))XF.sub='';
   app.innerHTML=pageHead('Mock Exams','Practice with timed exams, then review the correct answers.',[['Mock Exams']],isStaff()?`<button class="btn" onclick="openExamForm()">${icon('plus',16)} Create exam</button>`:'')+
-    filterBar({id:'x',st:XF,ph:'Search exams by title or subject'})+`<div id="xres" class="grid"></div>`;
+    filterBar({id:'x',st:XF,ph:'Search exams by title or subject',lock:myCourseOnly()?me.course:''})+`<div id="xres" class="grid"></div>`;
   wireFilters({id:'x',st:XF},examRun,examClear);examRun();
 };
 
@@ -92,6 +96,7 @@ window.archExam=x=>{AF.exam=x=='All'?'':x;document.querySelectorAll('#aperiod .c
 window.archClear=()=>{AF={q:'',course:'',sub:'',exam:'',yr:'',sem:'',sec:'',sort:'new'};ssSet('mip_af',AF);V.archive()};
 V.archive=()=>{
   if(!me)return location.hash='#login';
+  if(myCourseOnly()&&!AF._d){AF.course=me.course;AF._d=1}
   if(pend){AF.sub=pend;pend=null}
   if(pq){AF.q=pq;pq=''}
   if(pendX){AF.exam=pendX=='All'?'':pendX;pendX=null}
@@ -147,7 +152,7 @@ V.home=()=>{
   const hr=new Date().getHours(),gr=hr<12?'Good morning':hr<18?'Good afternoon':'Good evening';
   const rows=own?CS.filter(x=>x.course==own).sort((a,b)=>yearOrder(yv)(a.year,b.year)||a.subject.localeCompare(b.subject)):[],mySubs=new Set(rows.map(x=>x.subject));
   const newest=[...R].sort(byDate).slice(0,4),cont=recentList().map(id=>R.find(r=>r.id==id)).filter(Boolean).slice(0,3);
-  const exams=[...E].sort((a,b)=>(mySubs.has(b.subject)-mySubs.has(a.subject))||b.id-a.id).slice(0,3);
+  const exams=[...examBase()].sort((a,b)=>(mySubs.has(b.subject)-mySubs.has(a.subject))||b.id-a.id).slice(0,3);
   const un=(typeof CH!='undefined'&&((CH.unread['']||0)+(own?(CH.unread[own]||0):0)))||0,an=(typeof annUnread=='function'&&ANN_OK)?annUnread().length:0;
   const tile=(h,ic,l,b)=>`<a class="sc" href="${h}">${icon(ic,22)}<span>${l}</span>${b?`<i class="nb">${b>99?'99+':b}</i>`:''}</a>`;
   const admin=isAdmin()||isStaff()?`<section class="card adm-home" aria-label="Manage content"><div class="ch">${icon('admin',18)}<span>Manage content</span>${isAdmin()?'<a href="#admin">Admin Panel</a>':''}</div>
@@ -179,3 +184,20 @@ const _vr0=V.r;V.r=id=>{
   const bc=`<div class="bc" role="navigation" aria-label="Breadcrumb"><ol><li><a href="#home">Home</a></li><li><a href="#archive">Archive</a></li><li><a href="${subLink(r.subject)}">${esc(r.subject)}</a></li><li aria-current="page"><span>${esc(annExcerpt(r.title,40))}</span></li></ol></div>`;
   if(h)h.outerHTML=bc;else app.insertAdjacentHTML('afterbegin',bc);
 };
+
+/* class section: a dropdown of the course's sections when the admin has added some, free text otherwise */
+function sectionPicker(inputId,courseId,yearId){
+  const cs=document.getElementById(courseId);if(!cs||!document.getElementById(inputId))return;
+  const cur=String(document.getElementById(inputId).value||'').toUpperCase();
+  const make=()=>{
+    const el=document.getElementById(inputId);if(!el)return;
+    const c=cs.value,list=SECTIONS.filter(s=>s.course==c),ye=yearId&&document.getElementById(yearId),yv=ye?+ye.value:0;
+    if(!c||!list.length){if(el.tagName=='SELECT'){const i=document.createElement('input');i.id=inputId;i.maxLength=20;i.placeholder='e.g. BSIS-II201';i.autocomplete='off';el.replaceWith(i)}return}
+    const opts=list.filter(s=>!yv||!s.year||s.year==yv),sel=el.tagName=='SELECT'?el:document.createElement('select');sel.id=inputId;sel.setAttribute('aria-label','Section');
+    sel.innerHTML='<option value="">Choose your section</option>'+opts.map(s=>`<option value="${esc(s.name)}" ${s.name==cur?'selected':''}>${esc(s.name)}${s.year?' · '+esc(yr(s.year)):''}</option>`).join('');
+    if(el!==sel)el.replaceWith(sel);
+  };
+  cs.addEventListener('change',make);const ye=yearId&&document.getElementById(yearId);if(ye)ye.addEventListener('change',make);make();
+}
+const _vS2=V.settings;V.settings=()=>{_vS2();sectionPicker('st_s','st_c','st_y')};
+const _vW2=V.welcome;V.welcome=()=>{_vW2();if(document.getElementById('oc'))sectionPicker('os','oc','oy')};

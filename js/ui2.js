@@ -127,7 +127,7 @@ function searchAll(raw){
   const pick=(arr,fn,n=5)=>arr.map(x=>[fn(x),x]).filter(p=>p[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,n).map(p=>p[1]);
   const rv=pick(R,r=>Math.max(scoreOf(r.title,q),scoreOf(r.subject,q)*.8,...r.topics.map(t=>scoreOf(t,q)*.7),scoreOf(r.section,q)*.6));
   if(rv.length)G.push({name:'Reviewers',items:rv.map(r=>({ic:'file',t:r.title,s:r.subject+' · '+r.exam,href:'#r/'+r.id,badge:r.type}))});
-  const ex=pick(E,e=>Math.max(scoreOf(e.title,q),scoreOf(e.subject,q)*.8));
+  const ex=pick(typeof examBase=='function'?examBase():E,e=>Math.max(scoreOf(e.title,q),scoreOf(e.subject,q)*.8));
   if(ex.length)G.push({name:'Mock exams',items:ex.map(e=>({ic:'exams',t:e.title,s:e.subject+' · '+e.q.length+' questions',href:'#exam/'+e.id}))});
   const sb=pick(SUBJ,s=>scoreOf(s,q));
   if(sb.length)G.push({name:'Subjects',items:sb.map(s=>({ic:'book',t:s,s:R.filter(r=>r.subject==s).length+' reviewers · '+E.filter(e=>e.subject==s).length+' exams',href:'#subject/'+encodeURIComponent(s)}))});

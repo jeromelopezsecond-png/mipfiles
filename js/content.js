@@ -23,6 +23,7 @@ const scope=q=>HAS_SCH?q.eq('school_id',SCH):q;              // limit deletes/up
 /* ---------- courses (each course has its own subjects per year level) ---------- */
 const COURSES=[...new Set([...R.map(r=>r.course).filter(Boolean),'BS Computer Engineering'])].sort();
 const CS=[];R.forEach(r=>{if(r.course&&!CS.some(x=>x.course==r.course&&x.subject==r.subject))CS.push({course:r.course,subject:r.subject,year:r.year})});
+const SECTIONS=[];R.forEach(r=>{if(r.course&&r.section&&!SECTIONS.some(s=>s.course==r.course&&s.name==r.section))SECTIONS.push({course:r.course,name:r.section,year:r.year})});
 const courseOK=c=>!!c&&COURSES.includes(c);
 const landing=()=>me&&courseOK(me.course)?'course':'dash';
 const yearOrder=y=>(a,b)=>(a==y?-1:a==0?9:a)-(b==y?-1:b==0?9:b);
@@ -54,6 +55,8 @@ async function loadContent(){
   E.length=0;e.data.forEach(x=>E.push(toE(x)));
   if(!c.error&&!cs.error){COURSES.length=0;c.data.forEach(x=>COURSES.push(x.name));CS.length=0;cs.data.forEach(x=>CS.push({course:x.course,subject:x.subject,year:x.year_level}))}
   else console.warn('Courses not set up. Run courses_chat.sql in Supabase.',c.error||cs.error);
+  const sx=await q('course_sections','course,name,year_level').order('name');
+  SECTIONS.length=0;if(!sx.error)sx.data.forEach(x=>SECTIONS.push({course:x.course,name:x.name,year:x.year_level}));
   sideSubs();
 }
 
@@ -161,6 +164,20 @@ async function updateExam(id,o){
   Object.assign(e,toE(data));return true;
 }
 
+/* class sections (per course) */
+async function addSection(course,name,year){
+  name=String(name||'').trim().toUpperCase();
+  if(!/^[A-Z0-9][A-Z0-9 \-]{1,19}$/.test(name)){toast('Use 2 to 20 letters, numbers or dashes for the section name.','err');return false}
+  if(SECTIONS.some(s=>s.course==course&&s.name==name)){toast('That section already exists in this course.','err');return false}
+  if(live()){const {error}=await sb.from('course_sections').insert({...sc(),course,name,year_level:year||0});if(error){toast(dberr(error),'err');return false}}
+  SECTIONS.push({course,name,year:year||0});return true;
+}
+async function delSection(course,name){
+  if(live()){const {data,error}=await scope(sb.from('course_sections').delete()).eq('course',course).eq('name',name).select();
+    if(error||!data||!data.length){toast(error?dberr(error):'Not allowed. Only admins can remove sections.','err');return false}}
+  const i=SECTIONS.findIndex(s=>s.course==course&&s.name==name);if(i>=0)SECTIONS.splice(i,1);return true;
+}
+
 /* courses */
 async function addCourse(name,subs){
   name=String(name||'').trim().replace(/\s+/g,' ');
@@ -176,7 +193,7 @@ async function delCourse(name){
   if(live()){const {data,error}=await scope(sb.from('courses').delete()).eq('name',name).select();
     if(error){toast(dberr(error));return false}
     if(!data||!data.length){toast('Not allowed. Only admins can delete courses.');return false}}
-  COURSES.splice(COURSES.indexOf(name),1);for(let i=CS.length-1;i>=0;i--)if(CS[i].course==name)CS.splice(i,1);
+  COURSES.splice(COURSES.indexOf(name),1);for(let i=CS.length-1;i>=0;i--)if(CS[i].course==name)CS.splice(i,1);for(let i=SECTIONS.length-1;i>=0;i--)if(SECTIONS[i].course==name)SECTIONS.splice(i,1);
   if(me&&me.course==name)me.course=null;sideSubs();return true;
 }
 async function setCS(course,subject,year){
@@ -319,11 +336,11 @@ V.dash=()=>{
 <h1 class="greet2">${gr}, <span>${esc(me.code_name||user)}</span></h1><p class="mt" style="max-width:440px;margin:0">${ex.length?'Keep the streak going. Pick a subject or take another mock exam.':'Pick a subject to review, or test yourself with a mock exam.'}</p>
 <div class="row"><a class="btn" href="#archive">Browse archive</a><a class="btn g" href="#exams">Take a mock exam</a>${isStaff()?'<button class="btn g" onclick="fabToggle()">+ Add content</button>':''}</div></div>
 <div class="dring"><div class="ring" style="--p:${avg}"><span>${avg}%</span></div><div class="mt sm" style="margin-top:10px">Average score · ${ex.length} exam${ex.length==1?'':'s'}</div></div></section>
-<div class="tiles">${tile('▤',R.length,'Reviewers')}${tile('◈',SUBJ.length,'Subjects')}${tile('✎',E.length,'Mock exams')}${tile('↓',R.reduce((s,r)=>s+r.dl,0),'Downloads')}</div>
+<div class="tiles">${tile('▤',R.length,'Reviewers')}${tile('◈',SUBJ.length,'Subjects')}${tile('✎',examBase().length,'Mock exams')}${tile('↓',R.reduce((s,r)=>s+r.dl,0),'Downloads')}</div>
 <div class="dg"><div class="card"><div class="ch">Reviewers by subject<a href="#archive">Browse</a></div>${subs.length?subs.map(s=>`<button class="sb" data-s="${esc(s[0])}" onclick="goSub(this.dataset.s)"><span class="sbn">${esc(s[0])}</span><span class="bar"><i style="width:${Math.max(8,s[1]/mx*100)}%"></i></span><b>${s[1]}</b></button>`).join(''):'<p class="mt">No reviewers yet.</p>'}</div>
 <div class="card"><div class="ch">Recently added<a href="#archive">View all</a></div>${newest.length?newest.map(r=>`<div class="li"><div class="grow"><a href="#r/${r.id}"><b class="tr">${esc(r.title)}</b></a><div class="mt sm tr">${esc(r.subject)} · ${esc(r.exam)}</div></div><button class="btn g sbtn" onclick="dl(${r.id})" aria-label="Download ${esc(r.title)}">↓</button></div>`).join(''):'<p class="mt">Nothing uploaded yet.</p>'}</div></div>
 <div class="dg eq"><div class="card"><div class="ch">By exam type</div><div class="hb">${T.map(t=>`<div class="col" role="button" tabindex="0" title="${t[1]} reviewer${t[1]==1?'':'s'}: open ${t[0]}" onclick="goExam('${t[0]}')"><div class="bw"><div class="b ${t[1]==tm?'solid':''}" style="height:${Math.max(12,t[1]/tm*100)}%"></div></div><span>${t[0]}</span></div>`).join('')}</div></div>
-<div class="card"><div class="ch">Mock exams<a href="#exams">View all</a></div>${E.length?E.slice(0,3).map(e=>`<div class="li"><div class="grow"><b class="tr">${esc(e.title)}</b><div class="mt sm tr">${esc(e.subject)} · ${e.q.length} questions · ${e.mins} min</div></div><a class="btn g sbtn" href="#exam/${e.id}">Start</a></div>`).join(''):'<p class="mt">No mock exams yet.</p>'}</div></div>
+<div class="card"><div class="ch">Mock exams<a href="#exams">View all</a></div>${examBase().length?examBase().slice(0,3).map(e=>`<div class="li"><div class="grow"><b class="tr">${esc(e.title)}</b><div class="mt sm tr">${esc(e.subject)} · ${e.q.length} questions · ${e.mins} min</div></div><a class="btn g sbtn" href="#exam/${e.id}">Start</a></div>`).join(''):'<p class="mt">No mock exams yet.</p>'}</div></div>
 <h2>Bookmarked</h2><div class="grid">${saved.length?saved.map(rc).join(''):'<div class="card mt">Nothing saved yet. Star a reviewer in the archive.</div>'}</div>
 <h2>Recently viewed</h2><div class="grid">${seen.length?seen.map(rc).join(''):'<div class="card mt">Open a reviewer and it will show up here.</div>'}</div>
 <h2>Exam history</h2>${ex.length?ex.map(h=>`<div class="card" style="margin-bottom:8px">${esc(h.title)} · ${h.pct}% · ${h.pass?'Passed':'Failed'}</div>`).join(''):'<div class="card mt">No attempts yet.</div>'}`;
